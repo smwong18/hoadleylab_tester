@@ -14,16 +14,17 @@ knitr::opts_chunk$set(echo = TRUE)
 This chunk will generate a data frame of random numbers and write that to a csv in the repo file. You will then be able to access that file from any computer. 
 
 ```{r demo}
+df_random <- as.data.frame(matrix(sample(1:99, 40, replace = TRUE), nrow = 4, ncol = 10))
 
+# Print the dataframe
+print(df_random)
 
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
+## Writing csv
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+write.csv(df_random, file = 'demo_YOURNAME.csv')
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
