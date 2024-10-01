@@ -1,0 +1,29 @@
+---
+title: "Lab_Meeting_Demo"
+author: "Sophie Wong"
+date: "2024-10-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Writing files to repo
+
+This chunk will generate a data frame of random numbers and write that to a csv in the repo file. You will then be able to access that file from any computer. 
+
+```{r demo}
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
