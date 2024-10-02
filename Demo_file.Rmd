@@ -5,9 +5,6 @@ date: "2024-10-01"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Writing files to repo
 
@@ -24,7 +21,7 @@ print(df_random)
 ## Writing csv
 
 ```{r pressure, echo=FALSE}
-write.csv(df_random, file = 'demo_YOURNAME.csv')
+write.csv(df_random, file = 'Shannon.csv')
 
 ```
 
