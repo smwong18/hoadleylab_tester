@@ -1,0 +1,2655 @@
+library(ggplot2)#
+library(gplots)#
+library(car)#
+library(MVN)#
+library(MASS)#
+library(data.table)#
+library(tidyverse)#
+library(nls2)#
+library(drc)#
+library(nlme)#
+#
+rm(list=ls())#
+#
+movingAverage <- function(x, n=1, centered=FALSE) #
+{   if (centered) {#
+        before <- floor  ((n-1)/2)#
+        after  <- ceiling((n-1)/2)#
+    } else {#
+        before <- n-1#
+        after  <- 0#
+    }#
+    s     <- rep(0, length(x))#
+    count <- rep(0, length(x))#
+    new <- x #
+    count <- count + !is.na(new)#
+    new[is.na(new)] <- 0#
+    s <- s + new#
+    i <- 1#
+    while (i <= before) {#
+        new   <- c(rep(NA, i), x[1:(length(x)-i)])#
+        count <- count + !is.na(new)#
+        new[is.na(new)] <- 0#
+        s <- s + new#
+        i <- i+1#
+    }#
+    i <- 1#
+    while (i <= after) {#
+        # This is the vector with offset values to add#
+        new   <- c(x[(i+1):length(x)], rep(NA, i))#
+        count <- count + !is.na(new)#
+        new[is.na(new)] <- 0#
+        s <- s + new#
+        i <- i+1#
+    }#
+    s/count#
+}#
+photo<-function(allSample, name)#
+{	#
+	part<-allSample#
+	#part<-na.omit(data.frame(do.call(rbind,PAR)))#
+	part1add<-list()	#
+	lev<-levels(factor(part$col))#
+	for(Y in 1:4)#
+	{#
+		part1<-subset(part, col==lev[Y])#
+		minF<-range(part1$Fo, na.rm=TRUE)[1]#
+		maxF<-range(part1$Fo, na.rm=TRUE)[2]#
+		maxSig<-range(part1$Sig, na.rm=TRUE)[2]#
+		NPQ<-(maxF-part1$Fm)/part1$Fm#
+	    qP<-((maxF-part1$Fo)/(maxF-minF))#
+	    ABQ<-(1-(part1$Sig/maxSig))#
+	    part1add[[Y]]<-data.frame(part1, "NPQ"=NPQ, "qP"=qP, "ABQ"=ABQ)#
+	}#
+	all<-data.frame(do.call(rbind, part1add))#
+	part<-all#
+	summary(part)#
+	names<-paste("images/", name, ".pdf", sep="")#
+	levels(as.factor(part$sample))#
+	pdf(file = names, width = 5, height = 7, bg="transparent")#
+	par(mfrow=c(10,4), oma = c(2, 3.5, 0.1, 2.5), mar = c(0.1, 0.1, 0.1, 0.1))#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="415nm", ylab="Light Protocol", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="447nm", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="470nm", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="505nm", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), ylab="qP", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), ylab="NPQ", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), ylab="Quantum yield PSII", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	#col<-subset(part, col=="Col4norm" & sample==levels(as.factor(part$sample))[1])#
+	#plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", ylab="Sigma", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", ylab="ABQ", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), ylab="connectivity", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", ylab="connectivity", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", ylab="Tau1", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", ylab="Tau2", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	dev.off()#
+}#
+#
+CompilerCSV<-function(allSample, name)#
+{	#
+	fluor<-allSample#
+#
+	sampler<-levels(factor(fluor$sample))#
+	samps<-nlevels(factor(fluor$sample))#
+	s1<-15#
+	s2<-19#
+	B<-0#
+	harvest<-list()#
+	for(I in 1:samps)#
+	{	#I <- 1#
+		rearranged<-subset(fluor, sample==sampler[I])#
+		rearranger<-rearranged[!rearranged$Lstep %in% c("2", "23", "29"),]#
+		dims<-dim(rearranger)[1]#
+		if(dims==104)#
+		{	part1add<-list()	#
+			lev<-levels(factor(rearranger$col))#
+			for(Y in 1:4)#
+			{	part1a<-subset(rearranger, col==lev[Y])#
+				part1v<-sapply(part1a[,4:26], as.numeric)#
+				part1c<-part1a[,1:3]#
+				part1<-data.frame(part1c, part1v)#
+				MTparty<-subset(rearranged, col==lev[Y])#
+				MTparty1<-sapply(MTparty[,4:26], as.numeric)#
+				MTparty2<-MTparty[,1:3]#
+				colMT<-data.frame(MTparty2, MTparty1)#
+				minF<-part1$Fo[22]#
+				maxFqp<-colMT$Fm[2]#
+				maxF<-colMT$Fm[2]#
+				maxSig<-part1$Sig[1]#
+				NPQ<-(maxF-part1$Fm)/part1$Fm#
+		    	qP<-((maxFqp-part1$Fo)/(maxFqp-minF))#
+		    	ABQ<-(1-(part1$Sig/maxSig))#
+		    	qm<-1-(part1$FvFm/part1$FvFm[1])#
+			    part<-part1[,-18]#
+			    part1add[[Y]]<-data.frame(part[,3], part[,s1:s2], "NPQ"=NPQ, "qP"=qP, "ABQ"=ABQ, "qm"=qm)#
+			}#
+			all<-data.frame(do.call(rbind, part1add))#
+			x<-c(sampler[I])#
+			for(N in 1:dims)#
+			{	if(all[N,1]=="Col0norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col1norm")#
+				{	x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col2norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col3norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+			}#
+			partMT<-list()#
+			for(YY in 1:4)#
+			{	MTparty<-subset(rearranged, col==lev[YY])#
+				MTparty1<-sapply(MTparty[,4:26], as.numeric)#
+				MTparty2<-MTparty[,1:3]#
+				col0MT<-data.frame(MTparty2, MTparty1)#
+				MTfvfmd<-col0MT$Fm[1]/col0MT$Fm[2]#
+				Qpd<-(col0MT$Fm[2]-col0MT$Fo[1])/col0MT$Fm[2]#
+				MTtau1d<-col0MT$Tau1[2]#
+				MTtau2d<-col0MT$Tau2[2]#
+				MTfvfml<-col0MT$Fm[22]/col0MT$Fm[23]#
+				Qpl<-(col0MT$Fm[23]-col0MT$Fo[22])/col0MT$Fm[23]#
+				MTtau1l<-col0MT$Tau1[23]#
+				MTtau2l<-col0MT$Tau2[23]#
+				MTfvfmr<-col0MT$Fm[28]/col0MT$Fm[29]#
+				Qpr<-(col0MT$Fm[29]-col0MT$Fo[28])/col0MT$Fm[29]#
+				MTtau1r<-col0MT$Tau1[29]#
+				MTtau2r<-col0MT$Tau2[29]#
+				partMT[[YY]]<-data.frame("mtfvfmD"=MTfvfmd, "Qpd"=Qpd, "MTt1d"=MTtau1d, "MTt2d"=MTtau2d, "mtfvfml"=MTfvfml, "Qpl"=Qpl, "MTt1l"=MTtau1l, "MTt2l"=MTtau2l, "mtfvfmr"=MTfvfmr, "Qpr"=Qpr, "MTt1r"=MTtau1r, "MTt2r"=MTtau2r)#
+			}#
+			ratio<-subset(rearranged, Lstep=="1")$Fm#
+			R12<-ratio[1]/ratio[2]#
+			R32<-ratio[3]/ratio[2]#
+			R42<-ratio[4]/ratio[2]#
+			ratio2<-data.frame("rat12"=R12, "rat32"=R32, "rat42"=R42)#
+			x<-append(x, partMT[[1]])#
+			x<-append(x, partMT[[2]])#
+			x<-append(x, partMT[[3]])#
+			x<-append(x, partMT[[4]])#
+			x<-append(x, ratio2)#
+			B<-B+1#
+			harvest[[B]]<-data.frame(do.call(rbind, x))#
+		}#
+	}#
+	harv<-data.frame(do.call(cbind, harvest))#
+	dim(harv)#
+	colnames(harv)<-harv[1,]#
+	harv<-data.frame(harv[-1,])#
+	rownames(harv)#
+	dim(harv)#
+	summary(harv)#
+	#har<-na.omit(harv)#
+	har<-harv#
+	dim(har)#
+	col<-c(0,1,2,3)#
+	stage<-c(1,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,24,25,26,27,28)#
+	metric<-c("Quant", "Sigma", "Connect", "Tau1", "Tau2", "NPQ", "qP", "ABQ","qm")#
+	metrix<-c(1,2,3,4,5,6,7,8,9)#
+	h<-1#
+	metaphys<-list()#
+	for( I in 1:4)#
+	{	for (TT in 1:26)#
+		{	for (FF in 1:9)#
+			{	uni<-paste(metric[FF], stage[TT], col[I], sep=".")#
+				metaphys[[h]]<-data.frame("uni"=uni, "metric"=metric[FF], "metrix"=metrix[FF], "stage"=stage[TT], "col"=(col[I]+1))#
+				h<-h+1#
+			}#
+		}#
+	}#
+	metafluorA<-data.frame(do.call(rbind, metaphys))#
+	col<-c(0,1,2,3)#
+	stage<-c(2,23,29)#
+	metric<-c("MTQuant", "PQpool", "MTTau1", "MTTau2")#
+	metrix<-c(10,11,12,13)#
+	h<-1#
+	metaphysMT<-list()#
+	for( I in 1:4)#
+	{	for (TT in 1:3)#
+		{	for (FF in 1:4)#
+			{	uni<-paste(metric[FF], stage[TT], col[I], sep=".")#
+				metaphysMT[[h]]<-data.frame("uni"=uni, "metric"=metric[FF], "metrix"=metrix[FF], "stage"=stage[TT], "col"=(col[I]+1))#
+				h<-h+1#
+			}#
+		}#
+	}#
+	metafluorB<-data.frame(do.call(rbind, metaphysMT))#
+	metafluor1<-rbind(metafluorA, metafluorB, "Ratio12", "Ratio32", "Ratio42")#
+	rownames(har)<-metafluor1$uni#
+	dim(har)#
+	summary(har)#
+	Pheno<-t(har)#
+	dim(Pheno)#
+	Pheno66<-cbind(metafluor1, as.numeric(Pheno))#
+	colnames(Pheno66)[ncol(Pheno66)]<-name[[1]]#
+	namey<-paste("Processed/", name[[1]], "-Processed.CSV", sep="")#
+	write.csv(Pheno66, namey)#
+}#
+#
+###########			#
+############
+###REF######
+############
+############
+#
+RefFile<-readLines("std/STDR.CSV")#
+Refcapture<-list()#
+V<-1 #
+for (G in 1:(length(RefFile)-2))#
+{#
+	chart<-unlist(strsplit(RefFile[G], ","))#
+	if (chart[1]=="Time")#
+	{	Refcapture[[V]]<-RefFile[G:(G+4)]#
+		V<-V+1#
+	}#
+}#
+#
+############
+############
+###########		#
+###########			#
+############
+############
+############
+###########		#
+currentfile="Diveshop01092024" #file to be processed#
+datas<-list()#
+foldernames <- list.files("data", full.names=TRUE)   ######Folder name w data#
+for (V in 1:length(foldernames))#
+{	#
+	if(grepl(currentfile, foldernames[V], perl=TRUE)=="TRUE")#
+	{			#
+		BB<-0#
+		numb = 0#
+		#all<-list()#
+		Woo<-length(list.files(foldernames[V], full.names=TRUE))#
+		filenames<-list.files(foldernames[V], full.names=TRUE)#
+		#L<-22#
+		for(L in 1:Woo)#
+		{	if(grepl("r.csv", filenames[L], perl=TRUE)=="TRUE")#
+			{	BB<-BB+1#
+				Namer<-unlist(strsplit(unlist(strsplit(filenames[L], "/"))[3], "r.cs"))[1]#
+				Dater<-unlist(strsplit(filenames[L], "/"))[2]				#
+				ICalls<-readLines(filenames[L])#
+				capture<-list()#
+				V<-1 #
+				for (G in 1:(length(ICalls)-2))#
+				{#
+					chart<-unlist(strsplit(ICalls[G], ","))#
+					if (chart[1]=="Time")#
+					{	capture[[V]]<-ICalls[G:(G+4)]#
+						V<-V+1#
+					}#
+				}#
+				#############
+				PAR<-list()#
+				for (I in 1:length(capture))#
+				#for (I in 2:2)#
+				{	print(paste(I, "of", length(capture), "sample", Namer, BB, "of", Woo, sep=" "))#
+					MULTIS<-list()#
+					meta<-capture[[I]][1]#
+					dat<-unlist(strsplit(meta, ","))#
+					time<-as.numeric(dat[8])#
+					light<-as.numeric(dat[9])#
+					year<-as.numeric(dat[2])#
+					month<-as.numeric(dat[3])#
+					day<-as.numeric(dat[4])#
+					hour<-as.numeric(dat[5])#
+					minute<-as.numeric(dat[6])#
+					second<-as.numeric(dat[7])#
+					stepper<-I#
+					par(mfrow=c(4,2), oma = c(2, 3.5, 2.1, 2.5), mar = c(0.1, 0.1, 1.1, 0.1))#
+					#I<-15#
+					MT<-c(2,23,29)#
+					if(I %in% MT)#
+					{	for (G in 2:length(capture[[I]]))#
+						{	#G<-3#
+							simple<-(unlist(strsplit(capture[[I]][G], ",")))#
+							col<-simple[1]#
+							simple<-data.frame(na.omit(as.numeric(simple[-1])))	#
+							if (G == "2")#
+							{excit<-22136}#
+							if (G == "3")#
+							{ excit<-30967}#
+							if (G == "4")#
+							{excit<-35672}#
+							if (G == "5")#
+							{excit<-23409}#
+							leny<-nrow(simple)-70#
+							Refsimple<-na.omit(as.matrix(as.numeric(unlist(strsplit(Refcapture[[2]][G], "\\,"))[-1])))#
+							simplex<-1+(1-(Refsimple/Refsimple[1]))#
+							ccc<-simple#
+							simper<-ccc*simplex#
+							#simper<-ccc#
+							simper[simper==0]<-NA#
+							simple<-na.omit(simper)#
+							simper<-simple[1:leny,]#
+							samp<-length(simper)#
+							Fo <- simper[1]#
+							Fm<-mean(simper[(samp-30):samp])#
+							x<-c(1.5)#
+							n <-1.5#
+							for (i in 1:(samp[1]-1))#
+							{	n <- (n + 4.01)#
+								x <- append(x, n)#
+							}#
+							xx <- as.matrix(x)#
+							x1<- data.frame(xx)#
+							yvalue<-data.frame(simper)#
+							plot(xx, simper, pch=19, cex=0.5, col="black", main="no-fit")#
+							Fv <- Fm-Fo#
+							sigma <- NA#
+							sigma2 <- NA#
+							sigmaPval<-NA#
+							Fv_Fm <- Fv/Fm	#
+							Spval <- NA#
+							Fopval <- NA#
+							Fmpval <- NA#
+							conpval <- NA#
+							P<-NA#
+							Pval<-NA#
+							strt<-leny+1#
+							tau<-simple[strt:nrow(simple),]#
+							dimper<-as.matrix(as.numeric(tau))#
+							damp<-dim(dimper)#
+							x<-list()#
+							xx<-list()#
+							x[[1]] <-0#
+							xx[[1]] <-0#
+							x[[2]] <-50#
+							xx[[2]] <-50#
+							for (i in 3:(damp[1]))#
+							{	xx[[i]] <- (xx[[i-1]]*1.1)#
+								x[[i]] <- xx[[i]]+x[[i-1]]#
+							}#
+							xx <- as.matrix(do.call(rbind, x))#
+							frame1<-data.frame("xx"=xx, "xy"=dimper)#
+							frame1$xy[frame1$xy==0]<-NA#
+							frame<-na.omit(frame1)#
+							summary(frame)#
+							fin<-dim(frame)[1]#
+							x1<-frame$xx#
+							yvalue<-frame$xy#
+							if(is.numeric(Fm)==TRUE)#
+							{	Aest<-Fv#
+								Cest<-Fo#
+							}#
+							if(is.numeric(Fm)==FALSE)#
+							{	Fm<-simper[endo]#
+								Fo<-simper[1]#
+								Fv<-Fm-Fo#
+								Aest<-Fv#
+								Cest<-Fo#
+							}					#
+							lowE<-0.75#
+							hiE<-1.25#
+							finn<-fin+1#
+							scores1<-list()#
+							for(U in seq(1,10,2))#
+							{	#U<-1#
+								end0<-finn-U#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+								cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))#
+								st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(1000,100000), C=c(Cest*lowE,Cest*hiE), D=c(100000,10000000))#
+								model1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+								model<--999#
+								model<-try(nls2(cur, start = coef(model1), control = list(maxiter = 4000), algorithm = "port", lower=c(0.5*coef(model1)), upper=c(1.5*coef(model1))), silent=TRUE)#
+								if(mode(summary(model))=="list")#
+								{	estT1<-summary(model)$coefficients#
+									scores1[[U]]<-data.frame("distt"=U,"squarer"=sum(estT1[,2]))#
+								}#
+								else if(mode(summary(model))=="character")#
+								{	scores1[[U]]<-data.frame("distt"=U, "squarer"=NA)#
+								}#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,1]#
+							#finalist1<-1#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finn-finalist1#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	end0<-fin#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))	#
+							st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(1000,50000), C=c(Cest*lowE,Cest*hiE), D=c(10000,10000000))		#
+							fited1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+							v<--999#
+							v<-try(nls2(cur, start = coef(fited1), control = list(maxiter = 4000), algorithm = "port", lower=c(0.5*coef(fited1)), upper=c(1.5*coef(fited1))), silent=TRUE)	#
+							if(mode(v)=="character")#
+							{	Tau1<-NA#
+								Tau2<-NA#
+								TauAve<-NA#
+								TauFo<-NA#
+								T1pval<-NA#
+								T2pval<-NA#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main="no-fit", log="x")#
+							}#
+							if(mode(v)=="list")#
+							{	COEF<-summary(v)$coefficients#
+								Acoe<-COEF[1,1]#
+								Bcoe<-COEF[2,1]#
+								Ccoe<-COEF[3,1]#
+								Dcoe<-COEF[4,1]#
+								T1pval<-COEF[2,4]#
+								T2pval<-COEF[4,4]#
+								rest<-(Acoe*(exp(-x1/Bcoe)))+(Ccoe*(exp(-x1/Dcoe)))#
+								Tau1<-Bcoe#
+								Tau2<-Dcoe#
+								TauAve<-(Bcoe+Dcoe)/2#
+								TauFo<-(Acoe*(exp(-x1[end0]/Bcoe)))+(Ccoe*(exp(-x1[end0]/Dcoe)))							#
+								hh<-rest[1]*0.9#
+								ll<-rest[length(rest)]*1.1#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", log="x")#
+								lines(x1,rest, col ="red", lwd=1.75)	#
+							}						#
+							MULTIS[[G]]<-data.frame("dater"=Dater, "sample"=Namer, "col"=col, "year"=year, "month"=month, "day"=day, "hour"=hour, "minute"=minute, "second"=second, "light"=light, "time"=time, "Lstep"=stepper, "Fo"=Fo, "Fm"=Fm, "FvFm"=Fv_Fm, "Sig"=sigma, "P"=P, "TauFo"=TauFo,"Tau1"= Tau1, "Tau2"= Tau2, "TauAve"= TauAve, "Spval"=Spval, "Fopval"=Fopval, "Fmpval"=Fmpval, "Pval"=Pval, "T1pval"=T1pval, "T2pval"=T2pval, "sigma2"=sigma2, "sigmaPval"=sigmaPval)#
+						}	#
+					PAR[[I]]<-data.frame(do.call(rbind, MULTIS))#
+					}#
+					else #
+					{	#
+						for (G in 2:length(capture[[I]]))#
+						{	#G<-2#
+							simple<-(unlist(strsplit(capture[[I]][G], ",")))#
+							col<-simple[1]#
+							simple<-data.frame(na.omit(as.numeric(simple[-1])))	#
+							if (G == "2")#
+							{excit<-22136}#
+							if (G == "3")#
+							{ excit<-30967}#
+							if (G == "4")#
+							{excit<-35672}#
+							if (G == "5")#
+							{excit<-23409}#
+							leny<-nrow(simple)-62#
+							Refsimple<-na.omit(as.matrix(as.numeric(unlist(strsplit(Refcapture[[1]][G], "\\,"))[-1])))#
+							simplex<-1+(1-(Refsimple/Refsimple[1]))#
+							ccc<-simple#
+							simper<-ccc*simplex#
+							#simper<-ccc#
+							simper[simper==0]<-NA#
+							simple<-na.omit(simper)#
+							simper<-simple[1:leny,]#
+							samp<-length(simper)#
+							Fmprop<-mean(simper[(samp-3):samp])#
+							x<-c(1.5)#
+							n <-1.5#
+							for (i in 1:(samp[1]-1))#
+							{	n <- (n + 4.01)#
+								x <- append(x, n)#
+							}#
+							xx <- as.matrix(x)#
+							x1<- as.data.frame(xx)#
+							yvalue<-as.data.frame(simper)#
+							endo<-samp[1]#
+							ender<-round(endo/2)#
+							scores1<-list()#
+							end<-endo#
+							res1<-list()#
+							for(U in 1:ender)#
+							{	#
+								srt<-end-5#
+								x1er<- xx[srt:end]#
+								yvaluer<- simper[srt:end]#
+								scores1[[U]]<-data.frame("distt"=end,"squarer"=abs(lm(yvaluer~x1er)[[1]][2]),"mean"=mean(yvaluer))#
+								end<-endo-U#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,]#
+							#if(finalist11[,3]>Fmprop)#
+							#{	finalist1<-finalist11[,1]#
+							#}else{finalist1<-samp}#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finalist1#
+								x1<- xx[1:end0]#
+								yvalue<- simper[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	x1<- xx[1:endo]#
+								yvalue<- simper[1:endo]#
+							}#
+							low<-yvalue[1]#
+							high<-yvalue[length(yvalue)]#
+							v <- -999#
+							cur<- yvalue ~ A + (B-A)*(1-exp(-(C*x1)))#
+							st2 <- data.frame(A = c(low*0.85, low*1.15), B = c(high*0.85, high*1.15), C = c(-0.1, 0.1)) #
+							mod2 <- try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=2000)), silent=TRUE)#
+							v<-try(nls2(cur, start = coef(mod2), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)		#
+	            jax<-try(summary(v)$coefficients, silent=T)#
+							if(mode(jax)=="character")#
+							{	coef <- NA#
+								Aest <- NA#
+								Best <- NA#
+								Cest <- NA#
+								Aerr <- NA#
+								Berr <- NA#
+								Cerr <- NA#
+								Fv <- NA#
+								Fm <- NA#
+								Fo <- NA#
+								sigma <- NA#
+								sigma2 <- NA#
+								Fv_Fm <- NA	#
+								Spval <- NA#
+								Fopval <- NA#
+								Fmpval <- NA#
+								conpval <- NA#
+								sigmaPval <- NA#
+								P<-NA#
+								Pval<-NA		#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main=col)#
+							}#
+							if (mode(jax)=="numeric")#
+							{	coef <- summary(v)$coefficients#
+								Aest <- coef[1,1]#
+								Best <- coef[2,1]#
+								Cest <- coef[3,1]#
+								Fo <- Aest + (Best-Aest)*(1-exp(-(Cest*1)))#
+								Fm <- Aest + (Best-Aest)*(1-exp(-(Cest*x1[length(x1)])))#
+								qP<- (Fm-yvalue)/(Fm-Fo)#
+								CC<-1-qP	#
+								CSC<-CC[1]#
+								sigma2<-Cest/excit*1000000#
+								sigmaPval<-coef[3,4]#
+								X<-1.0#
+							  choosy<-list()#
+								for(GB in 1:10)#
+								{	len<-round(length(yvalue)/X,0)#
+									satcurve1 <- function(P, Ces, Foo) #
+									{   Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Foo + (Fm - Foo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+							   		STR<-yvalue[1:len]#
+									fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.01, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#find a better P estimate?#
+									if(mode(fit2)=="character")#
+									{	fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.35, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#
+									}#
+									if(mode(fit2)=="character")#
+									{	fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.7, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#
+									}#
+									#summary(fit2)#
+									len<-length(yvalue)#
+									satcurve2 <- function(P, Fm) #
+									{   Fo<-coef(fit2)[3]#
+										Ces<-coef(fit2)[2]#
+										Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+									fit3 <- try(nls2(yvalue~satcurve2(P, Fm), start=list(P=coef(fit2)[1], Fm=Fm), algorithm="port", control = list(maxiter = 2000), lower=c(0,Fm*0.9), upper=c(1,Fm*1.1)), silent=TRUE)	#
+									#summary(fit3)$coefficients#
+									len<-length(yvalue)#
+									satcurve3 <- function(Ces, Fo) #
+									{   Fm<-coef(fit3)[2]#
+										P<-coef(fit3)[1]#
+										Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+									fit4 <- try(nls2(yvalue~satcurve3(Ces, Fo), start=list(Ces=coef(fit2)[2], Fo=coef(fit2)[3]), algorithm="port", control = list(maxiter = 5000), lower=c(0,(0.5*coef(fit2)[3])), upper=c(1,(1.5*coef(fit2)[3]))), silent=TRUE)#
+									if(mode(fit3)=="list")#
+									{	if(mode(fit4)=="list")#
+										{#
+										choosy[[GB]]<-data.frame(cbind("X"=X, "met"=c("P", "Fm", "Ces", "Fo")), rbind(summary(fit3)$coefficients, summary(fit4)$coefficients)) 			}#
+									} #
+									X<-X+0.5#
+								}	#
+								choosiest<-data.frame(do.call(rbind, choosy))#
+								if(nrow(choosiest)>0)#
+								{	choosier<-subset(choosiest, met=="P")#
+									theOne<-choosier[order(choosier$Pr...t..),][1,1]#
+									fitedBest<-subset(choosiest, X==theOne)#
+									finalVal<-fitedBest#
+									len<-length(yvalue)#
+									#Fm<-finalVal[2,3]#
+									P<-finalVal[1,3]#
+									Ces<-finalVal[3,3]#
+									#Fo<-finalVal[4,3]#
+									Cd<-CC[1]#
+						      		Ye<-list()#
+						      		for (O in 1:len) #
+						      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+						      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+						          		Ye<-append(Ye, Yv)#
+						          		Cd<-Ct#
+						      		}#
+									Fopval<-finalVal[4,6]#
+									Fmpval<-finalVal[2,6]#
+									Spval<-finalVal[3,6]#
+									Pval<-finalVal[1,6]#
+									Fo<-as.numeric(Ye[1])#
+									Fm<-as.numeric(Ye[length(Ye)])#
+									Fv <- Fm-Fo#
+									sigma <- Ces/excit*1000000#
+									Fv_Fm <- Fv/Fm#
+									Ft<-Fo*0.95#
+									max<-Fm*1.05#
+									plot(x1, yvalue, pch=19, cex=0.5, col="black", ylim=c(Ft,max), main=col)#
+									lines(x1,Ye, col ="red", lwd=1.75)#
+								}#
+								if(nrow(choosiest)==0)#
+								{	#
+									Fm<-NA#
+									P<-NA#
+									Fo<-NA#
+									Fv_Fm<-NA#
+									sigma<-NA#
+									Fopval<-NA#
+									Fmpval<-NA#
+									Spval<-NA#
+									Pval<-NA#
+									plot(x1, yvalue, pch=19, cex=0.5, col="black", main=col)#
+								}#
+							}#
+							strt<-leny+1#
+							tau<-simple[strt:nrow(simple),]#
+							dimper<-as.matrix(as.numeric(tau))#
+							damp<-dim(dimper)#
+							x<-list()#
+							xx<-list()#
+							x[[1]] <-0#
+							xx[[1]] <-0#
+							x[[2]] <-50#
+							xx[[2]] <-50#
+							for (i in 3:(damp[1]))#
+							{	xx[[i]] <- (xx[[i-1]]*1.1)#
+								x[[i]] <- xx[[i]]+x[[i-1]]#
+							}#
+							xx <- as.matrix(do.call(rbind, x))#
+							means<-median(dimper, na.rm=TRUE)#
+							sds<-sd(dimper, na.rm=TRUE)#
+							yval<-list()#
+							for(R in 1:length(dimper))#
+							{ if(is.na(dimper[R])==TRUE)#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] < (simper[1]*0.3))#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] > (simper[length(simper)]*1.15))#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] < (means+sds*3))#
+							  {#
+							    yval[[R]]<-dimper[R]#
+							  }	#
+							  else if(dimper[R] > (means-sds*3))#
+							  {#
+							    yval[[R]]<-dimper[R]#
+							  }	#
+							}#
+							xy <- as.matrix(do.call(rbind, yval))#
+							frame<-na.omit(data.frame(xx,"xy"=xy))#
+							summary(frame)#
+							fin<-dim(frame)[1]#
+							x1<-frame$xx#
+							yvalue<-frame$yx#
+							if(is.numeric(Fm)==TRUE)#
+							{	Aest<-Fv#
+								Cest<-Fo#
+							}#
+							if(is.numeric(Fm)==FALSE)#
+							{	Fm<-simper[endo]#
+								Fo<-simper[1]#
+								Fv<-Fm-Fo#
+								Aest<-Fv#
+								Cest<-Fo#
+							}					#
+							lowE<-0.75#
+							hiE<-1.25#
+							finn<-fin+1#
+							scores1<-list()#
+							for(U in seq(1,15,1))#
+							{	end0<-finn-U#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+								cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))#
+								st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(100,1000), C=c(Cest*lowE,Cest*hiE), D=c(1000,30000))#
+								model1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+								model<--999#
+								model<-try(nls2(cur, start = coef(model1), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)#
+								if(mode(summary(model))=="list")#
+								{	#plot(model, log="")#
+									estT1<-summary(model)$coefficients#
+									scores1[[U]]<-data.frame("distt"=U,"squarer"=sum(estT1[,2]))#
+								}#
+								else if(mode(summary(model))=="character")#
+								{	scores1[[U]]<-data.frame("distt"=U, "squarer"=NA)#
+								}#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,1]#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finn-finalist1#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	end0<-fin#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))	#
+							st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(100,1000), C=c(Cest*lowE,Cest*hiE), D=c(1000,30000))					#
+							fited1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+							v<--999#
+							v<-try(nls2(cur, start = coef(fited1), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)	#
+							if(mode(v)=="character")#
+							{	Tau1<-NA#
+								Tau2<-NA#
+								TauAve<-NA#
+								TauFo<-NA#
+								T1pval<-NA#
+								T2pval<-NA#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main="no-fit")#
+							}#
+							if(mode(v)=="list")#
+							{	COEF<-summary(v)$coefficients#
+								Acoe<-COEF[1,1]#
+								Bcoe<-COEF[2,1]#
+								Ccoe<-COEF[3,1]#
+								Dcoe<-COEF[4,1]#
+								T1pval<-COEF[2,4]#
+								T2pval<-COEF[4,4]#
+								rest<-(Acoe*(exp(-x1/Bcoe)))+(Ccoe*(exp(-x1/Dcoe)))#
+								Tau1<-Bcoe#
+								Tau2<-Dcoe#
+								TauAve<-(Bcoe+Dcoe)/2#
+								TauFo<-(Acoe*(exp(-x1[end0]/Bcoe)))+(Ccoe*(exp(-x1[end0]/Dcoe)))							#
+								hh<-rest[1]*0.9#
+								ll<-rest[length(rest)]*1.1#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", log="x")#
+								lines(x1,rest, col ="red", lwd=1.75)	#
+							}						#
+							MULTIS[[G]]<-data.frame("dater"=Dater, "sample"=Namer, "col"=col, "year"=year, "month"=month, "day"=day, "hour"=hour, "minute"=minute, "second"=second, "light"=light, "time"=time, "Lstep"=stepper, "Fo"=Fo, "Fm"=Fm, "FvFm"=Fv_Fm, "Sig"=sigma, "P"=P, "TauFo"=TauFo,"Tau1"= Tau1, "Tau2"= Tau2, "TauAve"= TauAve, "Spval"=Spval, "Fopval"=Fopval, "Fmpval"=Fmpval, "Pval"=Pval, "T1pval"=T1pval, "T2pval"=T2pval, "sigma2"=sigma2, "sigmaPval"=sigmaPval)#
+						}	#
+					PAR[[I]]<-data.frame(do.call(rbind, MULTIS))		#
+					}#
+				}#
+			all<-data.frame(do.call(rbind, PAR))#
+			NN<-MULTIS[[G]][2]#
+			CompilerCSV(all, NN)#
+			#photo(all, NN)#
+			}#
+		}#
+	}#
+}
+library(ggplot2)#
+library(gplots)#
+library(car)#
+library(MVN)#
+library(MASS)#
+library(data.table)#
+library(tidyverse)#
+library(nls2)#
+library(drc)#
+library(nlme)#
+#
+rm(list=ls())#
+#
+movingAverage <- function(x, n=1, centered=FALSE) #
+{   if (centered) {#
+        before <- floor  ((n-1)/2)#
+        after  <- ceiling((n-1)/2)#
+    } else {#
+        before <- n-1#
+        after  <- 0#
+    }#
+    s     <- rep(0, length(x))#
+    count <- rep(0, length(x))#
+    new <- x #
+    count <- count + !is.na(new)#
+    new[is.na(new)] <- 0#
+    s <- s + new#
+    i <- 1#
+    while (i <= before) {#
+        new   <- c(rep(NA, i), x[1:(length(x)-i)])#
+        count <- count + !is.na(new)#
+        new[is.na(new)] <- 0#
+        s <- s + new#
+        i <- i+1#
+    }#
+    i <- 1#
+    while (i <= after) {#
+        # This is the vector with offset values to add#
+        new   <- c(x[(i+1):length(x)], rep(NA, i))#
+        count <- count + !is.na(new)#
+        new[is.na(new)] <- 0#
+        s <- s + new#
+        i <- i+1#
+    }#
+    s/count#
+}#
+photo<-function(allSample, name)#
+{	#
+	part<-allSample#
+	#part<-na.omit(data.frame(do.call(rbind,PAR)))#
+	part1add<-list()	#
+	lev<-levels(factor(part$col))#
+	for(Y in 1:4)#
+	{#
+		part1<-subset(part, col==lev[Y])#
+		minF<-range(part1$Fo, na.rm=TRUE)[1]#
+		maxF<-range(part1$Fo, na.rm=TRUE)[2]#
+		maxSig<-range(part1$Sig, na.rm=TRUE)[2]#
+		NPQ<-(maxF-part1$Fm)/part1$Fm#
+	    qP<-((maxF-part1$Fo)/(maxF-minF))#
+	    ABQ<-(1-(part1$Sig/maxSig))#
+	    part1add[[Y]]<-data.frame(part1, "NPQ"=NPQ, "qP"=qP, "ABQ"=ABQ)#
+	}#
+	all<-data.frame(do.call(rbind, part1add))#
+	part<-all#
+	summary(part)#
+	names<-paste("images/", name, ".pdf", sep="")#
+	levels(as.factor(part$sample))#
+	pdf(file = names, width = 5, height = 7, bg="transparent")#
+	par(mfrow=c(10,4), oma = c(2, 3.5, 0.1, 2.5), mar = c(0.1, 0.1, 0.1, 0.1))#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="415nm", ylab="Light Protocol", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="447nm", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="470nm", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="505nm", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), ylab="qP", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), ylab="NPQ", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), ylab="Quantum yield PSII", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	#col<-subset(part, col=="Col4norm" & sample==levels(as.factor(part$sample))[1])#
+	#plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", ylab="Sigma", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", ylab="ABQ", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), ylab="connectivity", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", ylab="connectivity", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", ylab="Tau1", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", ylab="Tau2", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	dev.off()#
+}#
+#
+CompilerCSV<-function(allSample, name)#
+{	#
+	fluor<-allSample#
+#
+	sampler<-levels(factor(fluor$sample))#
+	samps<-nlevels(factor(fluor$sample))#
+	s1<-15#
+	s2<-19#
+	B<-0#
+	harvest<-list()#
+	for(I in 1:samps)#
+	{	#I <- 1#
+		rearranged<-subset(fluor, sample==sampler[I])#
+		rearranger<-rearranged[!rearranged$Lstep %in% c("2", "23", "29"),]#
+		dims<-dim(rearranger)[1]#
+		if(dims==104)#
+		{	part1add<-list()	#
+			lev<-levels(factor(rearranger$col))#
+			for(Y in 1:4)#
+			{	part1a<-subset(rearranger, col==lev[Y])#
+				part1v<-sapply(part1a[,4:26], as.numeric)#
+				part1c<-part1a[,1:3]#
+				part1<-data.frame(part1c, part1v)#
+				MTparty<-subset(rearranged, col==lev[Y])#
+				MTparty1<-sapply(MTparty[,4:26], as.numeric)#
+				MTparty2<-MTparty[,1:3]#
+				colMT<-data.frame(MTparty2, MTparty1)#
+				minF<-part1$Fo[22]#
+				maxFqp<-colMT$Fm[2]#
+				maxF<-colMT$Fm[2]#
+				maxSig<-part1$Sig[1]#
+				NPQ<-(maxF-part1$Fm)/part1$Fm#
+		    	qP<-((maxFqp-part1$Fo)/(maxFqp-minF))#
+		    	ABQ<-(1-(part1$Sig/maxSig))#
+		    	qm<-1-(part1$FvFm/part1$FvFm[1])#
+			    part<-part1[,-18]#
+			    part1add[[Y]]<-data.frame(part[,3], part[,s1:s2], "NPQ"=NPQ, "qP"=qP, "ABQ"=ABQ, "qm"=qm)#
+			}#
+			all<-data.frame(do.call(rbind, part1add))#
+			x<-c(sampler[I])#
+			for(N in 1:dims)#
+			{	if(all[N,1]=="Col0norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col1norm")#
+				{	x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col2norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col3norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+			}#
+			partMT<-list()#
+			for(YY in 1:4)#
+			{	MTparty<-subset(rearranged, col==lev[YY])#
+				MTparty1<-sapply(MTparty[,4:26], as.numeric)#
+				MTparty2<-MTparty[,1:3]#
+				col0MT<-data.frame(MTparty2, MTparty1)#
+				MTfvfmd<-col0MT$Fm[1]/col0MT$Fm[2]#
+				Qpd<-(col0MT$Fm[2]-col0MT$Fo[1])/col0MT$Fm[2]#
+				MTtau1d<-col0MT$Tau1[2]#
+				MTtau2d<-col0MT$Tau2[2]#
+				MTfvfml<-col0MT$Fm[22]/col0MT$Fm[23]#
+				Qpl<-(col0MT$Fm[23]-col0MT$Fo[22])/col0MT$Fm[23]#
+				MTtau1l<-col0MT$Tau1[23]#
+				MTtau2l<-col0MT$Tau2[23]#
+				MTfvfmr<-col0MT$Fm[28]/col0MT$Fm[29]#
+				Qpr<-(col0MT$Fm[29]-col0MT$Fo[28])/col0MT$Fm[29]#
+				MTtau1r<-col0MT$Tau1[29]#
+				MTtau2r<-col0MT$Tau2[29]#
+				partMT[[YY]]<-data.frame("mtfvfmD"=MTfvfmd, "Qpd"=Qpd, "MTt1d"=MTtau1d, "MTt2d"=MTtau2d, "mtfvfml"=MTfvfml, "Qpl"=Qpl, "MTt1l"=MTtau1l, "MTt2l"=MTtau2l, "mtfvfmr"=MTfvfmr, "Qpr"=Qpr, "MTt1r"=MTtau1r, "MTt2r"=MTtau2r)#
+			}#
+			ratio<-subset(rearranged, Lstep=="1")$Fm#
+			R12<-ratio[1]/ratio[2]#
+			R32<-ratio[3]/ratio[2]#
+			R42<-ratio[4]/ratio[2]#
+			ratio2<-data.frame("rat12"=R12, "rat32"=R32, "rat42"=R42)#
+			x<-append(x, partMT[[1]])#
+			x<-append(x, partMT[[2]])#
+			x<-append(x, partMT[[3]])#
+			x<-append(x, partMT[[4]])#
+			x<-append(x, ratio2)#
+			B<-B+1#
+			harvest[[B]]<-data.frame(do.call(rbind, x))#
+		}#
+	}#
+	harv<-data.frame(do.call(cbind, harvest))#
+	dim(harv)#
+	colnames(harv)<-harv[1,]#
+	harv<-data.frame(harv[-1,])#
+	rownames(harv)#
+	dim(harv)#
+	summary(harv)#
+	#har<-na.omit(harv)#
+	har<-harv#
+	dim(har)#
+	col<-c(0,1,2,3)#
+	stage<-c(1,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,24,25,26,27,28)#
+	metric<-c("Quant", "Sigma", "Connect", "Tau1", "Tau2", "NPQ", "qP", "ABQ","qm")#
+	metrix<-c(1,2,3,4,5,6,7,8,9)#
+	h<-1#
+	metaphys<-list()#
+	for( I in 1:4)#
+	{	for (TT in 1:26)#
+		{	for (FF in 1:9)#
+			{	uni<-paste(metric[FF], stage[TT], col[I], sep=".")#
+				metaphys[[h]]<-data.frame("uni"=uni, "metric"=metric[FF], "metrix"=metrix[FF], "stage"=stage[TT], "col"=(col[I]+1))#
+				h<-h+1#
+			}#
+		}#
+	}#
+	metafluorA<-data.frame(do.call(rbind, metaphys))#
+	col<-c(0,1,2,3)#
+	stage<-c(2,23,29)#
+	metric<-c("MTQuant", "PQpool", "MTTau1", "MTTau2")#
+	metrix<-c(10,11,12,13)#
+	h<-1#
+	metaphysMT<-list()#
+	for( I in 1:4)#
+	{	for (TT in 1:3)#
+		{	for (FF in 1:4)#
+			{	uni<-paste(metric[FF], stage[TT], col[I], sep=".")#
+				metaphysMT[[h]]<-data.frame("uni"=uni, "metric"=metric[FF], "metrix"=metrix[FF], "stage"=stage[TT], "col"=(col[I]+1))#
+				h<-h+1#
+			}#
+		}#
+	}#
+	metafluorB<-data.frame(do.call(rbind, metaphysMT))#
+	metafluor1<-rbind(metafluorA, metafluorB, "Ratio12", "Ratio32", "Ratio42")#
+	rownames(har)<-metafluor1$uni#
+	dim(har)#
+	summary(har)#
+	Pheno<-t(har)#
+	dim(Pheno)#
+	Pheno66<-cbind(metafluor1, as.numeric(Pheno))#
+	colnames(Pheno66)[ncol(Pheno66)]<-name[[1]]#
+	namey<-paste("Processed/", name[[1]], "-Processed.CSV", sep="")#
+	write.csv(Pheno66, namey)#
+}#
+#
+###########			#
+############
+###REF######
+############
+############
+#
+RefFile<-readLines("std/STDR.CSV")#
+Refcapture<-list()#
+V<-1 #
+for (G in 1:(length(RefFile)-2))#
+{#
+	chart<-unlist(strsplit(RefFile[G], ","))#
+	if (chart[1]=="Time")#
+	{	Refcapture[[V]]<-RefFile[G:(G+4)]#
+		V<-V+1#
+	}#
+}#
+#
+############
+############
+###########		#
+###########			#
+############
+############
+############
+###########		#
+currentfile="24jan09" #file to be processed#
+datas<-list()#
+foldernames <- list.files("data", full.names=TRUE)   ######Folder name w data#
+for (V in 1:length(foldernames))#
+{	#
+	if(grepl(currentfile, foldernames[V], perl=TRUE)=="TRUE")#
+	{			#
+		BB<-0#
+		numb = 0#
+		#all<-list()#
+		Woo<-length(list.files(foldernames[V], full.names=TRUE))#
+		filenames<-list.files(foldernames[V], full.names=TRUE)#
+		#L<-22#
+		for(L in 1:Woo)#
+		{	if(grepl("r.csv", filenames[L], perl=TRUE)=="TRUE")#
+			{	BB<-BB+1#
+				Namer<-unlist(strsplit(unlist(strsplit(filenames[L], "/"))[3], "r.cs"))[1]#
+				Dater<-unlist(strsplit(filenames[L], "/"))[2]				#
+				ICalls<-readLines(filenames[L])#
+				capture<-list()#
+				V<-1 #
+				for (G in 1:(length(ICalls)-2))#
+				{#
+					chart<-unlist(strsplit(ICalls[G], ","))#
+					if (chart[1]=="Time")#
+					{	capture[[V]]<-ICalls[G:(G+4)]#
+						V<-V+1#
+					}#
+				}#
+				#############
+				PAR<-list()#
+				for (I in 1:length(capture))#
+				#for (I in 2:2)#
+				{	print(paste(I, "of", length(capture), "sample", Namer, BB, "of", Woo, sep=" "))#
+					MULTIS<-list()#
+					meta<-capture[[I]][1]#
+					dat<-unlist(strsplit(meta, ","))#
+					time<-as.numeric(dat[8])#
+					light<-as.numeric(dat[9])#
+					year<-as.numeric(dat[2])#
+					month<-as.numeric(dat[3])#
+					day<-as.numeric(dat[4])#
+					hour<-as.numeric(dat[5])#
+					minute<-as.numeric(dat[6])#
+					second<-as.numeric(dat[7])#
+					stepper<-I#
+					par(mfrow=c(4,2), oma = c(2, 3.5, 2.1, 2.5), mar = c(0.1, 0.1, 1.1, 0.1))#
+					#I<-15#
+					MT<-c(2,23,29)#
+					if(I %in% MT)#
+					{	for (G in 2:length(capture[[I]]))#
+						{	#G<-3#
+							simple<-(unlist(strsplit(capture[[I]][G], ",")))#
+							col<-simple[1]#
+							simple<-data.frame(na.omit(as.numeric(simple[-1])))	#
+							if (G == "2")#
+							{excit<-22136}#
+							if (G == "3")#
+							{ excit<-30967}#
+							if (G == "4")#
+							{excit<-35672}#
+							if (G == "5")#
+							{excit<-23409}#
+							leny<-nrow(simple)-70#
+							Refsimple<-na.omit(as.matrix(as.numeric(unlist(strsplit(Refcapture[[2]][G], "\\,"))[-1])))#
+							simplex<-1+(1-(Refsimple/Refsimple[1]))#
+							ccc<-simple#
+							simper<-ccc*simplex#
+							#simper<-ccc#
+							simper[simper==0]<-NA#
+							simple<-na.omit(simper)#
+							simper<-simple[1:leny,]#
+							samp<-length(simper)#
+							Fo <- simper[1]#
+							Fm<-mean(simper[(samp-30):samp])#
+							x<-c(1.5)#
+							n <-1.5#
+							for (i in 1:(samp[1]-1))#
+							{	n <- (n + 4.01)#
+								x <- append(x, n)#
+							}#
+							xx <- as.matrix(x)#
+							x1<- data.frame(xx)#
+							yvalue<-data.frame(simper)#
+							plot(xx, simper, pch=19, cex=0.5, col="black", main="no-fit")#
+							Fv <- Fm-Fo#
+							sigma <- NA#
+							sigma2 <- NA#
+							sigmaPval<-NA#
+							Fv_Fm <- Fv/Fm	#
+							Spval <- NA#
+							Fopval <- NA#
+							Fmpval <- NA#
+							conpval <- NA#
+							P<-NA#
+							Pval<-NA#
+							strt<-leny+1#
+							tau<-simple[strt:nrow(simple),]#
+							dimper<-as.matrix(as.numeric(tau))#
+							damp<-dim(dimper)#
+							x<-list()#
+							xx<-list()#
+							x[[1]] <-0#
+							xx[[1]] <-0#
+							x[[2]] <-50#
+							xx[[2]] <-50#
+							for (i in 3:(damp[1]))#
+							{	xx[[i]] <- (xx[[i-1]]*1.1)#
+								x[[i]] <- xx[[i]]+x[[i-1]]#
+							}#
+							xx <- as.matrix(do.call(rbind, x))#
+							frame1<-data.frame("xx"=xx, "xy"=dimper)#
+							frame1$xy[frame1$xy==0]<-NA#
+							frame<-na.omit(frame1)#
+							summary(frame)#
+							fin<-dim(frame)[1]#
+							x1<-frame$xx#
+							yvalue<-frame$xy#
+							if(is.numeric(Fm)==TRUE)#
+							{	Aest<-Fv#
+								Cest<-Fo#
+							}#
+							if(is.numeric(Fm)==FALSE)#
+							{	Fm<-simper[endo]#
+								Fo<-simper[1]#
+								Fv<-Fm-Fo#
+								Aest<-Fv#
+								Cest<-Fo#
+							}					#
+							lowE<-0.75#
+							hiE<-1.25#
+							finn<-fin+1#
+							scores1<-list()#
+							for(U in seq(1,10,2))#
+							{	#U<-1#
+								end0<-finn-U#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+								cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))#
+								st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(1000,100000), C=c(Cest*lowE,Cest*hiE), D=c(100000,10000000))#
+								model1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+								model<--999#
+								model<-try(nls2(cur, start = coef(model1), control = list(maxiter = 4000), algorithm = "port", lower=c(0.5*coef(model1)), upper=c(1.5*coef(model1))), silent=TRUE)#
+								if(mode(summary(model))=="list")#
+								{	estT1<-summary(model)$coefficients#
+									scores1[[U]]<-data.frame("distt"=U,"squarer"=sum(estT1[,2]))#
+								}#
+								else if(mode(summary(model))=="character")#
+								{	scores1[[U]]<-data.frame("distt"=U, "squarer"=NA)#
+								}#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,1]#
+							#finalist1<-1#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finn-finalist1#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	end0<-fin#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))	#
+							st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(1000,50000), C=c(Cest*lowE,Cest*hiE), D=c(10000,10000000))		#
+							fited1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+							v<--999#
+							v<-try(nls2(cur, start = coef(fited1), control = list(maxiter = 4000), algorithm = "port", lower=c(0.5*coef(fited1)), upper=c(1.5*coef(fited1))), silent=TRUE)	#
+							if(mode(v)=="character")#
+							{	Tau1<-NA#
+								Tau2<-NA#
+								TauAve<-NA#
+								TauFo<-NA#
+								T1pval<-NA#
+								T2pval<-NA#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main="no-fit", log="x")#
+							}#
+							if(mode(v)=="list")#
+							{	COEF<-summary(v)$coefficients#
+								Acoe<-COEF[1,1]#
+								Bcoe<-COEF[2,1]#
+								Ccoe<-COEF[3,1]#
+								Dcoe<-COEF[4,1]#
+								T1pval<-COEF[2,4]#
+								T2pval<-COEF[4,4]#
+								rest<-(Acoe*(exp(-x1/Bcoe)))+(Ccoe*(exp(-x1/Dcoe)))#
+								Tau1<-Bcoe#
+								Tau2<-Dcoe#
+								TauAve<-(Bcoe+Dcoe)/2#
+								TauFo<-(Acoe*(exp(-x1[end0]/Bcoe)))+(Ccoe*(exp(-x1[end0]/Dcoe)))							#
+								hh<-rest[1]*0.9#
+								ll<-rest[length(rest)]*1.1#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", log="x")#
+								lines(x1,rest, col ="red", lwd=1.75)	#
+							}						#
+							MULTIS[[G]]<-data.frame("dater"=Dater, "sample"=Namer, "col"=col, "year"=year, "month"=month, "day"=day, "hour"=hour, "minute"=minute, "second"=second, "light"=light, "time"=time, "Lstep"=stepper, "Fo"=Fo, "Fm"=Fm, "FvFm"=Fv_Fm, "Sig"=sigma, "P"=P, "TauFo"=TauFo,"Tau1"= Tau1, "Tau2"= Tau2, "TauAve"= TauAve, "Spval"=Spval, "Fopval"=Fopval, "Fmpval"=Fmpval, "Pval"=Pval, "T1pval"=T1pval, "T2pval"=T2pval, "sigma2"=sigma2, "sigmaPval"=sigmaPval)#
+						}	#
+					PAR[[I]]<-data.frame(do.call(rbind, MULTIS))#
+					}#
+					else #
+					{	#
+						for (G in 2:length(capture[[I]]))#
+						{	#G<-2#
+							simple<-(unlist(strsplit(capture[[I]][G], ",")))#
+							col<-simple[1]#
+							simple<-data.frame(na.omit(as.numeric(simple[-1])))	#
+							if (G == "2")#
+							{excit<-22136}#
+							if (G == "3")#
+							{ excit<-30967}#
+							if (G == "4")#
+							{excit<-35672}#
+							if (G == "5")#
+							{excit<-23409}#
+							leny<-nrow(simple)-62#
+							Refsimple<-na.omit(as.matrix(as.numeric(unlist(strsplit(Refcapture[[1]][G], "\\,"))[-1])))#
+							simplex<-1+(1-(Refsimple/Refsimple[1]))#
+							ccc<-simple#
+							simper<-ccc*simplex#
+							#simper<-ccc#
+							simper[simper==0]<-NA#
+							simple<-na.omit(simper)#
+							simper<-simple[1:leny,]#
+							samp<-length(simper)#
+							Fmprop<-mean(simper[(samp-3):samp])#
+							x<-c(1.5)#
+							n <-1.5#
+							for (i in 1:(samp[1]-1))#
+							{	n <- (n + 4.01)#
+								x <- append(x, n)#
+							}#
+							xx <- as.matrix(x)#
+							x1<- as.data.frame(xx)#
+							yvalue<-as.data.frame(simper)#
+							endo<-samp[1]#
+							ender<-round(endo/2)#
+							scores1<-list()#
+							end<-endo#
+							res1<-list()#
+							for(U in 1:ender)#
+							{	#
+								srt<-end-5#
+								x1er<- xx[srt:end]#
+								yvaluer<- simper[srt:end]#
+								scores1[[U]]<-data.frame("distt"=end,"squarer"=abs(lm(yvaluer~x1er)[[1]][2]),"mean"=mean(yvaluer))#
+								end<-endo-U#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,]#
+							#if(finalist11[,3]>Fmprop)#
+							#{	finalist1<-finalist11[,1]#
+							#}else{finalist1<-samp}#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finalist1#
+								x1<- xx[1:end0]#
+								yvalue<- simper[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	x1<- xx[1:endo]#
+								yvalue<- simper[1:endo]#
+							}#
+							low<-yvalue[1]#
+							high<-yvalue[length(yvalue)]#
+							v <- -999#
+							cur<- yvalue ~ A + (B-A)*(1-exp(-(C*x1)))#
+							st2 <- data.frame(A = c(low*0.85, low*1.15), B = c(high*0.85, high*1.15), C = c(-0.1, 0.1)) #
+							mod2 <- try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=2000)), silent=TRUE)#
+							v<-try(nls2(cur, start = coef(mod2), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)		#
+	            jax<-try(summary(v)$coefficients, silent=T)#
+							if(mode(jax)=="character")#
+							{	coef <- NA#
+								Aest <- NA#
+								Best <- NA#
+								Cest <- NA#
+								Aerr <- NA#
+								Berr <- NA#
+								Cerr <- NA#
+								Fv <- NA#
+								Fm <- NA#
+								Fo <- NA#
+								sigma <- NA#
+								sigma2 <- NA#
+								Fv_Fm <- NA	#
+								Spval <- NA#
+								Fopval <- NA#
+								Fmpval <- NA#
+								conpval <- NA#
+								sigmaPval <- NA#
+								P<-NA#
+								Pval<-NA		#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main=col)#
+							}#
+							if (mode(jax)=="numeric")#
+							{	coef <- summary(v)$coefficients#
+								Aest <- coef[1,1]#
+								Best <- coef[2,1]#
+								Cest <- coef[3,1]#
+								Fo <- Aest + (Best-Aest)*(1-exp(-(Cest*1)))#
+								Fm <- Aest + (Best-Aest)*(1-exp(-(Cest*x1[length(x1)])))#
+								qP<- (Fm-yvalue)/(Fm-Fo)#
+								CC<-1-qP	#
+								CSC<-CC[1]#
+								sigma2<-Cest/excit*1000000#
+								sigmaPval<-coef[3,4]#
+								X<-1.0#
+							  choosy<-list()#
+								for(GB in 1:10)#
+								{	len<-round(length(yvalue)/X,0)#
+									satcurve1 <- function(P, Ces, Foo) #
+									{   Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Foo + (Fm - Foo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+							   		STR<-yvalue[1:len]#
+									fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.01, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#find a better P estimate?#
+									if(mode(fit2)=="character")#
+									{	fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.35, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#
+									}#
+									if(mode(fit2)=="character")#
+									{	fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.7, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#
+									}#
+									#summary(fit2)#
+									len<-length(yvalue)#
+									satcurve2 <- function(P, Fm) #
+									{   Fo<-coef(fit2)[3]#
+										Ces<-coef(fit2)[2]#
+										Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+									fit3 <- try(nls2(yvalue~satcurve2(P, Fm), start=list(P=coef(fit2)[1], Fm=Fm), algorithm="port", control = list(maxiter = 2000), lower=c(0,Fm*0.9), upper=c(1,Fm*1.1)), silent=TRUE)	#
+									#summary(fit3)$coefficients#
+									len<-length(yvalue)#
+									satcurve3 <- function(Ces, Fo) #
+									{   Fm<-coef(fit3)[2]#
+										P<-coef(fit3)[1]#
+										Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+									fit4 <- try(nls2(yvalue~satcurve3(Ces, Fo), start=list(Ces=coef(fit2)[2], Fo=coef(fit2)[3]), algorithm="port", control = list(maxiter = 5000), lower=c(0,(0.5*coef(fit2)[3])), upper=c(1,(1.5*coef(fit2)[3]))), silent=TRUE)#
+									if(mode(fit3)=="list")#
+									{	if(mode(fit4)=="list")#
+										{#
+										choosy[[GB]]<-data.frame(cbind("X"=X, "met"=c("P", "Fm", "Ces", "Fo")), rbind(summary(fit3)$coefficients, summary(fit4)$coefficients)) 			}#
+									} #
+									X<-X+0.5#
+								}	#
+								choosiest<-data.frame(do.call(rbind, choosy))#
+								if(nrow(choosiest)>0)#
+								{	choosier<-subset(choosiest, met=="P")#
+									theOne<-choosier[order(choosier$Pr...t..),][1,1]#
+									fitedBest<-subset(choosiest, X==theOne)#
+									finalVal<-fitedBest#
+									len<-length(yvalue)#
+									#Fm<-finalVal[2,3]#
+									P<-finalVal[1,3]#
+									Ces<-finalVal[3,3]#
+									#Fo<-finalVal[4,3]#
+									Cd<-CC[1]#
+						      		Ye<-list()#
+						      		for (O in 1:len) #
+						      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+						      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+						          		Ye<-append(Ye, Yv)#
+						          		Cd<-Ct#
+						      		}#
+									Fopval<-finalVal[4,6]#
+									Fmpval<-finalVal[2,6]#
+									Spval<-finalVal[3,6]#
+									Pval<-finalVal[1,6]#
+									Fo<-as.numeric(Ye[1])#
+									Fm<-as.numeric(Ye[length(Ye)])#
+									Fv <- Fm-Fo#
+									sigma <- Ces/excit*1000000#
+									Fv_Fm <- Fv/Fm#
+									Ft<-Fo*0.95#
+									max<-Fm*1.05#
+									plot(x1, yvalue, pch=19, cex=0.5, col="black", ylim=c(Ft,max), main=col)#
+									lines(x1,Ye, col ="red", lwd=1.75)#
+								}#
+								if(nrow(choosiest)==0)#
+								{	#
+									Fm<-NA#
+									P<-NA#
+									Fo<-NA#
+									Fv_Fm<-NA#
+									sigma<-NA#
+									Fopval<-NA#
+									Fmpval<-NA#
+									Spval<-NA#
+									Pval<-NA#
+									plot(x1, yvalue, pch=19, cex=0.5, col="black", main=col)#
+								}#
+							}#
+							strt<-leny+1#
+							tau<-simple[strt:nrow(simple),]#
+							dimper<-as.matrix(as.numeric(tau))#
+							damp<-dim(dimper)#
+							x<-list()#
+							xx<-list()#
+							x[[1]] <-0#
+							xx[[1]] <-0#
+							x[[2]] <-50#
+							xx[[2]] <-50#
+							for (i in 3:(damp[1]))#
+							{	xx[[i]] <- (xx[[i-1]]*1.1)#
+								x[[i]] <- xx[[i]]+x[[i-1]]#
+							}#
+							xx <- as.matrix(do.call(rbind, x))#
+							means<-median(dimper, na.rm=TRUE)#
+							sds<-sd(dimper, na.rm=TRUE)#
+							yval<-list()#
+							for(R in 1:length(dimper))#
+							{ if(is.na(dimper[R])==TRUE)#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] < (simper[1]*0.3))#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] > (simper[length(simper)]*1.15))#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] < (means+sds*3))#
+							  {#
+							    yval[[R]]<-dimper[R]#
+							  }	#
+							  else if(dimper[R] > (means-sds*3))#
+							  {#
+							    yval[[R]]<-dimper[R]#
+							  }	#
+							}#
+							xy <- as.matrix(do.call(rbind, yval))#
+							frame<-na.omit(data.frame(xx,"xy"=xy))#
+							summary(frame)#
+							fin<-dim(frame)[1]#
+							x1<-frame$xx#
+							yvalue<-frame$yx#
+							if(is.numeric(Fm)==TRUE)#
+							{	Aest<-Fv#
+								Cest<-Fo#
+							}#
+							if(is.numeric(Fm)==FALSE)#
+							{	Fm<-simper[endo]#
+								Fo<-simper[1]#
+								Fv<-Fm-Fo#
+								Aest<-Fv#
+								Cest<-Fo#
+							}					#
+							lowE<-0.75#
+							hiE<-1.25#
+							finn<-fin+1#
+							scores1<-list()#
+							for(U in seq(1,15,1))#
+							{	end0<-finn-U#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+								cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))#
+								st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(100,1000), C=c(Cest*lowE,Cest*hiE), D=c(1000,30000))#
+								model1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+								model<--999#
+								model<-try(nls2(cur, start = coef(model1), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)#
+								if(mode(summary(model))=="list")#
+								{	#plot(model, log="")#
+									estT1<-summary(model)$coefficients#
+									scores1[[U]]<-data.frame("distt"=U,"squarer"=sum(estT1[,2]))#
+								}#
+								else if(mode(summary(model))=="character")#
+								{	scores1[[U]]<-data.frame("distt"=U, "squarer"=NA)#
+								}#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,1]#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finn-finalist1#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	end0<-fin#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))	#
+							st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(100,1000), C=c(Cest*lowE,Cest*hiE), D=c(1000,30000))					#
+							fited1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+							v<--999#
+							v<-try(nls2(cur, start = coef(fited1), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)	#
+							if(mode(v)=="character")#
+							{	Tau1<-NA#
+								Tau2<-NA#
+								TauAve<-NA#
+								TauFo<-NA#
+								T1pval<-NA#
+								T2pval<-NA#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main="no-fit")#
+							}#
+							if(mode(v)=="list")#
+							{	COEF<-summary(v)$coefficients#
+								Acoe<-COEF[1,1]#
+								Bcoe<-COEF[2,1]#
+								Ccoe<-COEF[3,1]#
+								Dcoe<-COEF[4,1]#
+								T1pval<-COEF[2,4]#
+								T2pval<-COEF[4,4]#
+								rest<-(Acoe*(exp(-x1/Bcoe)))+(Ccoe*(exp(-x1/Dcoe)))#
+								Tau1<-Bcoe#
+								Tau2<-Dcoe#
+								TauAve<-(Bcoe+Dcoe)/2#
+								TauFo<-(Acoe*(exp(-x1[end0]/Bcoe)))+(Ccoe*(exp(-x1[end0]/Dcoe)))							#
+								hh<-rest[1]*0.9#
+								ll<-rest[length(rest)]*1.1#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", log="x")#
+								lines(x1,rest, col ="red", lwd=1.75)	#
+							}						#
+							MULTIS[[G]]<-data.frame("dater"=Dater, "sample"=Namer, "col"=col, "year"=year, "month"=month, "day"=day, "hour"=hour, "minute"=minute, "second"=second, "light"=light, "time"=time, "Lstep"=stepper, "Fo"=Fo, "Fm"=Fm, "FvFm"=Fv_Fm, "Sig"=sigma, "P"=P, "TauFo"=TauFo,"Tau1"= Tau1, "Tau2"= Tau2, "TauAve"= TauAve, "Spval"=Spval, "Fopval"=Fopval, "Fmpval"=Fmpval, "Pval"=Pval, "T1pval"=T1pval, "T2pval"=T2pval, "sigma2"=sigma2, "sigmaPval"=sigmaPval)#
+						}	#
+					PAR[[I]]<-data.frame(do.call(rbind, MULTIS))		#
+					}#
+				}#
+			all<-data.frame(do.call(rbind, PAR))#
+			NN<-MULTIS[[G]][2]#
+			CompilerCSV(all, NN)#
+			#photo(all, NN)#
+			}#
+		}#
+	}#
+}
+library(ggplot2)#
+library(gplots)#
+library(car)#
+library(MVN)#
+library(MASS)#
+library(data.table)#
+library(tidyverse)#
+library(nls2)#
+library(drc)#
+library(nlme)#
+#
+rm(list=ls())#
+#
+movingAverage <- function(x, n=1, centered=FALSE) #
+{   if (centered) {#
+        before <- floor  ((n-1)/2)#
+        after  <- ceiling((n-1)/2)#
+    } else {#
+        before <- n-1#
+        after  <- 0#
+    }#
+    s     <- rep(0, length(x))#
+    count <- rep(0, length(x))#
+    new <- x #
+    count <- count + !is.na(new)#
+    new[is.na(new)] <- 0#
+    s <- s + new#
+    i <- 1#
+    while (i <= before) {#
+        new   <- c(rep(NA, i), x[1:(length(x)-i)])#
+        count <- count + !is.na(new)#
+        new[is.na(new)] <- 0#
+        s <- s + new#
+        i <- i+1#
+    }#
+    i <- 1#
+    while (i <= after) {#
+        # This is the vector with offset values to add#
+        new   <- c(x[(i+1):length(x)], rep(NA, i))#
+        count <- count + !is.na(new)#
+        new[is.na(new)] <- 0#
+        s <- s + new#
+        i <- i+1#
+    }#
+    s/count#
+}#
+photo<-function(allSample, name)#
+{	#
+	part<-allSample#
+	#part<-na.omit(data.frame(do.call(rbind,PAR)))#
+	part1add<-list()	#
+	lev<-levels(factor(part$col))#
+	for(Y in 1:4)#
+	{#
+		part1<-subset(part, col==lev[Y])#
+		minF<-range(part1$Fo, na.rm=TRUE)[1]#
+		maxF<-range(part1$Fo, na.rm=TRUE)[2]#
+		maxSig<-range(part1$Sig, na.rm=TRUE)[2]#
+		NPQ<-(maxF-part1$Fm)/part1$Fm#
+	    qP<-((maxF-part1$Fo)/(maxF-minF))#
+	    ABQ<-(1-(part1$Sig/maxSig))#
+	    part1add[[Y]]<-data.frame(part1, "NPQ"=NPQ, "qP"=qP, "ABQ"=ABQ)#
+	}#
+	all<-data.frame(do.call(rbind, part1add))#
+	part<-all#
+	summary(part)#
+	names<-paste("images/", name, ".pdf", sep="")#
+	levels(as.factor(part$sample))#
+	pdf(file = names, width = 5, height = 7, bg="transparent")#
+	par(mfrow=c(10,4), oma = c(2, 3.5, 0.1, 2.5), mar = c(0.1, 0.1, 0.1, 0.1))#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="415nm", ylab="Light Protocol", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="447nm", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="470nm", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$light, type="l", title="505nm", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), ylab="qP", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$qP, type="l", ylim=c(0,1.0), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), ylab="NPQ", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$NPQ, type="l", ylim=c(0,2.0), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), ylab="Quantum yield PSII", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	#col<-subset(part, col=="Col4norm" & sample==levels(as.factor(part$sample))[1])#
+	#plot(col$time, col$FvFm, type="l", ylim=c(0,0.5), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", ylab="Sigma", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Sig, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", ylab="ABQ", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$ABQ, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), ylab="connectivity", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$P, type="l", ylim=c(0,0.95), axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", ylab="connectivity", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$sigma2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", ylab="Tau1", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau1, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col0norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", ylab="Tau2", axes=FALSE)#
+	col<-subset(part, col=="Col1norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col2norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	col<-subset(part, col=="Col3norm" & sample==levels(as.factor(part$sample))[1])#
+	plot(col$time, col$Tau2, type="l", axes=FALSE)#
+	dev.off()#
+}#
+#
+CompilerCSV<-function(allSample, name)#
+{	#
+	fluor<-allSample#
+#
+	sampler<-levels(factor(fluor$sample))#
+	samps<-nlevels(factor(fluor$sample))#
+	s1<-15#
+	s2<-19#
+	B<-0#
+	harvest<-list()#
+	for(I in 1:samps)#
+	{	#I <- 1#
+		rearranged<-subset(fluor, sample==sampler[I])#
+		rearranger<-rearranged[!rearranged$Lstep %in% c("2", "23", "29"),]#
+		dims<-dim(rearranger)[1]#
+		if(dims==104)#
+		{	part1add<-list()	#
+			lev<-levels(factor(rearranger$col))#
+			for(Y in 1:4)#
+			{	part1a<-subset(rearranger, col==lev[Y])#
+				part1v<-sapply(part1a[,4:26], as.numeric)#
+				part1c<-part1a[,1:3]#
+				part1<-data.frame(part1c, part1v)#
+				MTparty<-subset(rearranged, col==lev[Y])#
+				MTparty1<-sapply(MTparty[,4:26], as.numeric)#
+				MTparty2<-MTparty[,1:3]#
+				colMT<-data.frame(MTparty2, MTparty1)#
+				minF<-part1$Fo[22]#
+				maxFqp<-colMT$Fm[2]#
+				maxF<-colMT$Fm[2]#
+				maxSig<-part1$Sig[1]#
+				NPQ<-(maxF-part1$Fm)/part1$Fm#
+		    	qP<-((maxFqp-part1$Fo)/(maxFqp-minF))#
+		    	ABQ<-(1-(part1$Sig/maxSig))#
+		    	qm<-1-(part1$FvFm/part1$FvFm[1])#
+			    part<-part1[,-18]#
+			    part1add[[Y]]<-data.frame(part[,3], part[,s1:s2], "NPQ"=NPQ, "qP"=qP, "ABQ"=ABQ, "qm"=qm)#
+			}#
+			all<-data.frame(do.call(rbind, part1add))#
+			x<-c(sampler[I])#
+			for(N in 1:dims)#
+			{	if(all[N,1]=="Col0norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col1norm")#
+				{	x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col2norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+				if(all[N,1]=="Col3norm")#
+				{	#x<-append(x,all[N,5])#
+					x<-append(x,all[N,2:10])#
+				}#
+			}#
+			partMT<-list()#
+			for(YY in 1:4)#
+			{	MTparty<-subset(rearranged, col==lev[YY])#
+				MTparty1<-sapply(MTparty[,4:26], as.numeric)#
+				MTparty2<-MTparty[,1:3]#
+				col0MT<-data.frame(MTparty2, MTparty1)#
+				MTfvfmd<-col0MT$Fm[1]/col0MT$Fm[2]#
+				Qpd<-(col0MT$Fm[2]-col0MT$Fo[1])/col0MT$Fm[2]#
+				MTtau1d<-col0MT$Tau1[2]#
+				MTtau2d<-col0MT$Tau2[2]#
+				MTfvfml<-col0MT$Fm[22]/col0MT$Fm[23]#
+				Qpl<-(col0MT$Fm[23]-col0MT$Fo[22])/col0MT$Fm[23]#
+				MTtau1l<-col0MT$Tau1[23]#
+				MTtau2l<-col0MT$Tau2[23]#
+				MTfvfmr<-col0MT$Fm[28]/col0MT$Fm[29]#
+				Qpr<-(col0MT$Fm[29]-col0MT$Fo[28])/col0MT$Fm[29]#
+				MTtau1r<-col0MT$Tau1[29]#
+				MTtau2r<-col0MT$Tau2[29]#
+				partMT[[YY]]<-data.frame("mtfvfmD"=MTfvfmd, "Qpd"=Qpd, "MTt1d"=MTtau1d, "MTt2d"=MTtau2d, "mtfvfml"=MTfvfml, "Qpl"=Qpl, "MTt1l"=MTtau1l, "MTt2l"=MTtau2l, "mtfvfmr"=MTfvfmr, "Qpr"=Qpr, "MTt1r"=MTtau1r, "MTt2r"=MTtau2r)#
+			}#
+			ratio<-subset(rearranged, Lstep=="1")$Fm#
+			R12<-ratio[1]/ratio[2]#
+			R32<-ratio[3]/ratio[2]#
+			R42<-ratio[4]/ratio[2]#
+			ratio2<-data.frame("rat12"=R12, "rat32"=R32, "rat42"=R42)#
+			x<-append(x, partMT[[1]])#
+			x<-append(x, partMT[[2]])#
+			x<-append(x, partMT[[3]])#
+			x<-append(x, partMT[[4]])#
+			x<-append(x, ratio2)#
+			B<-B+1#
+			harvest[[B]]<-data.frame(do.call(rbind, x))#
+		}#
+	}#
+	harv<-data.frame(do.call(cbind, harvest))#
+	dim(harv)#
+	colnames(harv)<-harv[1,]#
+	harv<-data.frame(harv[-1,])#
+	rownames(harv)#
+	dim(harv)#
+	summary(harv)#
+	#har<-na.omit(harv)#
+	har<-harv#
+	dim(har)#
+	col<-c(0,1,2,3)#
+	stage<-c(1,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,24,25,26,27,28)#
+	metric<-c("Quant", "Sigma", "Connect", "Tau1", "Tau2", "NPQ", "qP", "ABQ","qm")#
+	metrix<-c(1,2,3,4,5,6,7,8,9)#
+	h<-1#
+	metaphys<-list()#
+	for( I in 1:4)#
+	{	for (TT in 1:26)#
+		{	for (FF in 1:9)#
+			{	uni<-paste(metric[FF], stage[TT], col[I], sep=".")#
+				metaphys[[h]]<-data.frame("uni"=uni, "metric"=metric[FF], "metrix"=metrix[FF], "stage"=stage[TT], "col"=(col[I]+1))#
+				h<-h+1#
+			}#
+		}#
+	}#
+	metafluorA<-data.frame(do.call(rbind, metaphys))#
+	col<-c(0,1,2,3)#
+	stage<-c(2,23,29)#
+	metric<-c("MTQuant", "PQpool", "MTTau1", "MTTau2")#
+	metrix<-c(10,11,12,13)#
+	h<-1#
+	metaphysMT<-list()#
+	for( I in 1:4)#
+	{	for (TT in 1:3)#
+		{	for (FF in 1:4)#
+			{	uni<-paste(metric[FF], stage[TT], col[I], sep=".")#
+				metaphysMT[[h]]<-data.frame("uni"=uni, "metric"=metric[FF], "metrix"=metrix[FF], "stage"=stage[TT], "col"=(col[I]+1))#
+				h<-h+1#
+			}#
+		}#
+	}#
+	metafluorB<-data.frame(do.call(rbind, metaphysMT))#
+	metafluor1<-rbind(metafluorA, metafluorB, "Ratio12", "Ratio32", "Ratio42")#
+	rownames(har)<-metafluor1$uni#
+	dim(har)#
+	summary(har)#
+	Pheno<-t(har)#
+	dim(Pheno)#
+	Pheno66<-cbind(metafluor1, as.numeric(Pheno))#
+	colnames(Pheno66)[ncol(Pheno66)]<-name[[1]]#
+	namey<-paste("Processed/", name[[1]], "-Processed.CSV", sep="")#
+	write.csv(Pheno66, namey)#
+}#
+#
+###########			#
+############
+###REF######
+############
+############
+#
+RefFile<-readLines("std/STDR.CSV")#
+Refcapture<-list()#
+V<-1 #
+for (G in 1:(length(RefFile)-2))#
+{#
+	chart<-unlist(strsplit(RefFile[G], ","))#
+	if (chart[1]=="Time")#
+	{	Refcapture[[V]]<-RefFile[G:(G+4)]#
+		V<-V+1#
+	}#
+}#
+#
+############
+############
+###########		#
+###########			#
+############
+############
+############
+###########		#
+currentfile="Votua2" #file to be processed#
+datas<-list()#
+foldernames <- list.files("data", full.names=TRUE)   ######Folder name w data#
+for (V in 1:length(foldernames))#
+{	#
+	if(grepl(currentfile, foldernames[V], perl=TRUE)=="TRUE")#
+	{			#
+		BB<-0#
+		numb = 0#
+		#all<-list()#
+		Woo<-length(list.files(foldernames[V], full.names=TRUE))#
+		filenames<-list.files(foldernames[V], full.names=TRUE)#
+		#L<-22#
+		for(L in 1:Woo)#
+		{	if(grepl("r.csv", filenames[L], perl=TRUE)=="TRUE")#
+			{	BB<-BB+1#
+				Namer<-unlist(strsplit(unlist(strsplit(filenames[L], "/"))[3], "r.cs"))[1]#
+				Dater<-unlist(strsplit(filenames[L], "/"))[2]				#
+				ICalls<-readLines(filenames[L])#
+				capture<-list()#
+				V<-1 #
+				for (G in 1:(length(ICalls)-2))#
+				{#
+					chart<-unlist(strsplit(ICalls[G], ","))#
+					if (chart[1]=="Time")#
+					{	capture[[V]]<-ICalls[G:(G+4)]#
+						V<-V+1#
+					}#
+				}#
+				#############
+				PAR<-list()#
+				for (I in 1:length(capture))#
+				#for (I in 2:2)#
+				{	print(paste(I, "of", length(capture), "sample", Namer, BB, "of", Woo, sep=" "))#
+					MULTIS<-list()#
+					meta<-capture[[I]][1]#
+					dat<-unlist(strsplit(meta, ","))#
+					time<-as.numeric(dat[8])#
+					light<-as.numeric(dat[9])#
+					year<-as.numeric(dat[2])#
+					month<-as.numeric(dat[3])#
+					day<-as.numeric(dat[4])#
+					hour<-as.numeric(dat[5])#
+					minute<-as.numeric(dat[6])#
+					second<-as.numeric(dat[7])#
+					stepper<-I#
+					par(mfrow=c(4,2), oma = c(2, 3.5, 2.1, 2.5), mar = c(0.1, 0.1, 1.1, 0.1))#
+					#I<-15#
+					MT<-c(2,23,29)#
+					if(I %in% MT)#
+					{	for (G in 2:length(capture[[I]]))#
+						{	#G<-3#
+							simple<-(unlist(strsplit(capture[[I]][G], ",")))#
+							col<-simple[1]#
+							simple<-data.frame(na.omit(as.numeric(simple[-1])))	#
+							if (G == "2")#
+							{excit<-22136}#
+							if (G == "3")#
+							{ excit<-30967}#
+							if (G == "4")#
+							{excit<-35672}#
+							if (G == "5")#
+							{excit<-23409}#
+							leny<-nrow(simple)-70#
+							Refsimple<-na.omit(as.matrix(as.numeric(unlist(strsplit(Refcapture[[2]][G], "\\,"))[-1])))#
+							simplex<-1+(1-(Refsimple/Refsimple[1]))#
+							ccc<-simple#
+							simper<-ccc*simplex#
+							#simper<-ccc#
+							simper[simper==0]<-NA#
+							simple<-na.omit(simper)#
+							simper<-simple[1:leny,]#
+							samp<-length(simper)#
+							Fo <- simper[1]#
+							Fm<-mean(simper[(samp-30):samp])#
+							x<-c(1.5)#
+							n <-1.5#
+							for (i in 1:(samp[1]-1))#
+							{	n <- (n + 4.01)#
+								x <- append(x, n)#
+							}#
+							xx <- as.matrix(x)#
+							x1<- data.frame(xx)#
+							yvalue<-data.frame(simper)#
+							plot(xx, simper, pch=19, cex=0.5, col="black", main="no-fit")#
+							Fv <- Fm-Fo#
+							sigma <- NA#
+							sigma2 <- NA#
+							sigmaPval<-NA#
+							Fv_Fm <- Fv/Fm	#
+							Spval <- NA#
+							Fopval <- NA#
+							Fmpval <- NA#
+							conpval <- NA#
+							P<-NA#
+							Pval<-NA#
+							strt<-leny+1#
+							tau<-simple[strt:nrow(simple),]#
+							dimper<-as.matrix(as.numeric(tau))#
+							damp<-dim(dimper)#
+							x<-list()#
+							xx<-list()#
+							x[[1]] <-0#
+							xx[[1]] <-0#
+							x[[2]] <-50#
+							xx[[2]] <-50#
+							for (i in 3:(damp[1]))#
+							{	xx[[i]] <- (xx[[i-1]]*1.1)#
+								x[[i]] <- xx[[i]]+x[[i-1]]#
+							}#
+							xx <- as.matrix(do.call(rbind, x))#
+							frame1<-data.frame("xx"=xx, "xy"=dimper)#
+							frame1$xy[frame1$xy==0]<-NA#
+							frame<-na.omit(frame1)#
+							summary(frame)#
+							fin<-dim(frame)[1]#
+							x1<-frame$xx#
+							yvalue<-frame$xy#
+							if(is.numeric(Fm)==TRUE)#
+							{	Aest<-Fv#
+								Cest<-Fo#
+							}#
+							if(is.numeric(Fm)==FALSE)#
+							{	Fm<-simper[endo]#
+								Fo<-simper[1]#
+								Fv<-Fm-Fo#
+								Aest<-Fv#
+								Cest<-Fo#
+							}					#
+							lowE<-0.75#
+							hiE<-1.25#
+							finn<-fin+1#
+							scores1<-list()#
+							for(U in seq(1,10,2))#
+							{	#U<-1#
+								end0<-finn-U#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+								cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))#
+								st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(1000,100000), C=c(Cest*lowE,Cest*hiE), D=c(100000,10000000))#
+								model1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+								model<--999#
+								model<-try(nls2(cur, start = coef(model1), control = list(maxiter = 4000), algorithm = "port", lower=c(0.5*coef(model1)), upper=c(1.5*coef(model1))), silent=TRUE)#
+								if(mode(summary(model))=="list")#
+								{	estT1<-summary(model)$coefficients#
+									scores1[[U]]<-data.frame("distt"=U,"squarer"=sum(estT1[,2]))#
+								}#
+								else if(mode(summary(model))=="character")#
+								{	scores1[[U]]<-data.frame("distt"=U, "squarer"=NA)#
+								}#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,1]#
+							#finalist1<-1#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finn-finalist1#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	end0<-fin#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))	#
+							st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(1000,50000), C=c(Cest*lowE,Cest*hiE), D=c(10000,10000000))		#
+							fited1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+							v<--999#
+							v<-try(nls2(cur, start = coef(fited1), control = list(maxiter = 4000), algorithm = "port", lower=c(0.5*coef(fited1)), upper=c(1.5*coef(fited1))), silent=TRUE)	#
+							if(mode(v)=="character")#
+							{	Tau1<-NA#
+								Tau2<-NA#
+								TauAve<-NA#
+								TauFo<-NA#
+								T1pval<-NA#
+								T2pval<-NA#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main="no-fit", log="x")#
+							}#
+							if(mode(v)=="list")#
+							{	COEF<-summary(v)$coefficients#
+								Acoe<-COEF[1,1]#
+								Bcoe<-COEF[2,1]#
+								Ccoe<-COEF[3,1]#
+								Dcoe<-COEF[4,1]#
+								T1pval<-COEF[2,4]#
+								T2pval<-COEF[4,4]#
+								rest<-(Acoe*(exp(-x1/Bcoe)))+(Ccoe*(exp(-x1/Dcoe)))#
+								Tau1<-Bcoe#
+								Tau2<-Dcoe#
+								TauAve<-(Bcoe+Dcoe)/2#
+								TauFo<-(Acoe*(exp(-x1[end0]/Bcoe)))+(Ccoe*(exp(-x1[end0]/Dcoe)))							#
+								hh<-rest[1]*0.9#
+								ll<-rest[length(rest)]*1.1#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", log="x")#
+								lines(x1,rest, col ="red", lwd=1.75)	#
+							}						#
+							MULTIS[[G]]<-data.frame("dater"=Dater, "sample"=Namer, "col"=col, "year"=year, "month"=month, "day"=day, "hour"=hour, "minute"=minute, "second"=second, "light"=light, "time"=time, "Lstep"=stepper, "Fo"=Fo, "Fm"=Fm, "FvFm"=Fv_Fm, "Sig"=sigma, "P"=P, "TauFo"=TauFo,"Tau1"= Tau1, "Tau2"= Tau2, "TauAve"= TauAve, "Spval"=Spval, "Fopval"=Fopval, "Fmpval"=Fmpval, "Pval"=Pval, "T1pval"=T1pval, "T2pval"=T2pval, "sigma2"=sigma2, "sigmaPval"=sigmaPval)#
+						}	#
+					PAR[[I]]<-data.frame(do.call(rbind, MULTIS))#
+					}#
+					else #
+					{	#
+						for (G in 2:length(capture[[I]]))#
+						{	#G<-2#
+							simple<-(unlist(strsplit(capture[[I]][G], ",")))#
+							col<-simple[1]#
+							simple<-data.frame(na.omit(as.numeric(simple[-1])))	#
+							if (G == "2")#
+							{excit<-22136}#
+							if (G == "3")#
+							{ excit<-30967}#
+							if (G == "4")#
+							{excit<-35672}#
+							if (G == "5")#
+							{excit<-23409}#
+							leny<-nrow(simple)-62#
+							Refsimple<-na.omit(as.matrix(as.numeric(unlist(strsplit(Refcapture[[1]][G], "\\,"))[-1])))#
+							simplex<-1+(1-(Refsimple/Refsimple[1]))#
+							ccc<-simple#
+							simper<-ccc*simplex#
+							#simper<-ccc#
+							simper[simper==0]<-NA#
+							simple<-na.omit(simper)#
+							simper<-simple[1:leny,]#
+							samp<-length(simper)#
+							Fmprop<-mean(simper[(samp-3):samp])#
+							x<-c(1.5)#
+							n <-1.5#
+							for (i in 1:(samp[1]-1))#
+							{	n <- (n + 4.01)#
+								x <- append(x, n)#
+							}#
+							xx <- as.matrix(x)#
+							x1<- as.data.frame(xx)#
+							yvalue<-as.data.frame(simper)#
+							endo<-samp[1]#
+							ender<-round(endo/2)#
+							scores1<-list()#
+							end<-endo#
+							res1<-list()#
+							for(U in 1:ender)#
+							{	#
+								srt<-end-5#
+								x1er<- xx[srt:end]#
+								yvaluer<- simper[srt:end]#
+								scores1[[U]]<-data.frame("distt"=end,"squarer"=abs(lm(yvaluer~x1er)[[1]][2]),"mean"=mean(yvaluer))#
+								end<-endo-U#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,]#
+							#if(finalist11[,3]>Fmprop)#
+							#{	finalist1<-finalist11[,1]#
+							#}else{finalist1<-samp}#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finalist1#
+								x1<- xx[1:end0]#
+								yvalue<- simper[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	x1<- xx[1:endo]#
+								yvalue<- simper[1:endo]#
+							}#
+							low<-yvalue[1]#
+							high<-yvalue[length(yvalue)]#
+							v <- -999#
+							cur<- yvalue ~ A + (B-A)*(1-exp(-(C*x1)))#
+							st2 <- data.frame(A = c(low*0.85, low*1.15), B = c(high*0.85, high*1.15), C = c(-0.1, 0.1)) #
+							mod2 <- try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=2000)), silent=TRUE)#
+							v<-try(nls2(cur, start = coef(mod2), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)		#
+	            jax<-try(summary(v)$coefficients, silent=T)#
+							if(mode(jax)=="character")#
+							{	coef <- NA#
+								Aest <- NA#
+								Best <- NA#
+								Cest <- NA#
+								Aerr <- NA#
+								Berr <- NA#
+								Cerr <- NA#
+								Fv <- NA#
+								Fm <- NA#
+								Fo <- NA#
+								sigma <- NA#
+								sigma2 <- NA#
+								Fv_Fm <- NA	#
+								Spval <- NA#
+								Fopval <- NA#
+								Fmpval <- NA#
+								conpval <- NA#
+								sigmaPval <- NA#
+								P<-NA#
+								Pval<-NA		#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main=col)#
+							}#
+							if (mode(jax)=="numeric")#
+							{	coef <- summary(v)$coefficients#
+								Aest <- coef[1,1]#
+								Best <- coef[2,1]#
+								Cest <- coef[3,1]#
+								Fo <- Aest + (Best-Aest)*(1-exp(-(Cest*1)))#
+								Fm <- Aest + (Best-Aest)*(1-exp(-(Cest*x1[length(x1)])))#
+								qP<- (Fm-yvalue)/(Fm-Fo)#
+								CC<-1-qP	#
+								CSC<-CC[1]#
+								sigma2<-Cest/excit*1000000#
+								sigmaPval<-coef[3,4]#
+								X<-1.0#
+							  choosy<-list()#
+								for(GB in 1:10)#
+								{	len<-round(length(yvalue)/X,0)#
+									satcurve1 <- function(P, Ces, Foo) #
+									{   Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Foo + (Fm - Foo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+							   		STR<-yvalue[1:len]#
+									fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.01, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#find a better P estimate?#
+									if(mode(fit2)=="character")#
+									{	fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.35, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#
+									}#
+									if(mode(fit2)=="character")#
+									{	fit2 <- try(nls2(STR~satcurve1(P, Ces, Foo), start=list(P=0.7, Ces=Cest, Foo=Fo), algorithm="port", control = list(maxiter = 2000), lower=c(0,0,Fo*0.995), upper=c(1,1,Fo*1.005)), silent=TRUE)	#
+									}#
+									#summary(fit2)#
+									len<-length(yvalue)#
+									satcurve2 <- function(P, Fm) #
+									{   Fo<-coef(fit2)[3]#
+										Ces<-coef(fit2)[2]#
+										Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+									fit3 <- try(nls2(yvalue~satcurve2(P, Fm), start=list(P=coef(fit2)[1], Fm=Fm), algorithm="port", control = list(maxiter = 2000), lower=c(0,Fm*0.9), upper=c(1,Fm*1.1)), silent=TRUE)	#
+									#summary(fit3)$coefficients#
+									len<-length(yvalue)#
+									satcurve3 <- function(Ces, Fo) #
+									{   Fm<-coef(fit3)[2]#
+										P<-coef(fit3)[1]#
+										Cd<-CSC#
+							      		Ye<-list()#
+							      		for (O in 1:len) #
+							      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+							      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+							          		Ye<-append(Ye, Yv)#
+							          		Cd<-Ct#
+							      		}#
+							      		return(as.numeric(Ye))#
+							   		}#
+									fit4 <- try(nls2(yvalue~satcurve3(Ces, Fo), start=list(Ces=coef(fit2)[2], Fo=coef(fit2)[3]), algorithm="port", control = list(maxiter = 5000), lower=c(0,(0.5*coef(fit2)[3])), upper=c(1,(1.5*coef(fit2)[3]))), silent=TRUE)#
+									if(mode(fit3)=="list")#
+									{	if(mode(fit4)=="list")#
+										{#
+										choosy[[GB]]<-data.frame(cbind("X"=X, "met"=c("P", "Fm", "Ces", "Fo")), rbind(summary(fit3)$coefficients, summary(fit4)$coefficients)) 			}#
+									} #
+									X<-X+0.5#
+								}	#
+								choosiest<-data.frame(do.call(rbind, choosy))#
+								if(nrow(choosiest)>0)#
+								{	choosier<-subset(choosiest, met=="P")#
+									theOne<-choosier[order(choosier$Pr...t..),][1,1]#
+									fitedBest<-subset(choosiest, X==theOne)#
+									finalVal<-fitedBest#
+									len<-length(yvalue)#
+									#Fm<-finalVal[2,3]#
+									P<-finalVal[1,3]#
+									Ces<-finalVal[3,3]#
+									#Fo<-finalVal[4,3]#
+									Cd<-CC[1]#
+						      		Ye<-list()#
+						      		for (O in 1:len) #
+						      		{   Ct<-Cd+Ces*((1-Cd)/(1-Cd*P))#
+						      			Yv<-Fo + (Fm - Fo)*Ct*((1-P)/(1-(Ct*P)))#
+						          		Ye<-append(Ye, Yv)#
+						          		Cd<-Ct#
+						      		}#
+									Fopval<-finalVal[4,6]#
+									Fmpval<-finalVal[2,6]#
+									Spval<-finalVal[3,6]#
+									Pval<-finalVal[1,6]#
+									Fo<-as.numeric(Ye[1])#
+									Fm<-as.numeric(Ye[length(Ye)])#
+									Fv <- Fm-Fo#
+									sigma <- Ces/excit*1000000#
+									Fv_Fm <- Fv/Fm#
+									Ft<-Fo*0.95#
+									max<-Fm*1.05#
+									plot(x1, yvalue, pch=19, cex=0.5, col="black", ylim=c(Ft,max), main=col)#
+									lines(x1,Ye, col ="red", lwd=1.75)#
+								}#
+								if(nrow(choosiest)==0)#
+								{	#
+									Fm<-NA#
+									P<-NA#
+									Fo<-NA#
+									Fv_Fm<-NA#
+									sigma<-NA#
+									Fopval<-NA#
+									Fmpval<-NA#
+									Spval<-NA#
+									Pval<-NA#
+									plot(x1, yvalue, pch=19, cex=0.5, col="black", main=col)#
+								}#
+							}#
+							strt<-leny+1#
+							tau<-simple[strt:nrow(simple),]#
+							dimper<-as.matrix(as.numeric(tau))#
+							damp<-dim(dimper)#
+							x<-list()#
+							xx<-list()#
+							x[[1]] <-0#
+							xx[[1]] <-0#
+							x[[2]] <-50#
+							xx[[2]] <-50#
+							for (i in 3:(damp[1]))#
+							{	xx[[i]] <- (xx[[i-1]]*1.1)#
+								x[[i]] <- xx[[i]]+x[[i-1]]#
+							}#
+							xx <- as.matrix(do.call(rbind, x))#
+							means<-median(dimper, na.rm=TRUE)#
+							sds<-sd(dimper, na.rm=TRUE)#
+							yval<-list()#
+							for(R in 1:length(dimper))#
+							{ if(is.na(dimper[R])==TRUE)#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] < (simper[1]*0.3))#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] > (simper[length(simper)]*1.15))#
+							  {#
+							    yval[[R]]<-NA#
+							  }#
+							  else if(dimper[R] < (means+sds*3))#
+							  {#
+							    yval[[R]]<-dimper[R]#
+							  }	#
+							  else if(dimper[R] > (means-sds*3))#
+							  {#
+							    yval[[R]]<-dimper[R]#
+							  }	#
+							}#
+							xy <- as.matrix(do.call(rbind, yval))#
+							frame<-na.omit(data.frame(xx,"xy"=xy))#
+							summary(frame)#
+							fin<-dim(frame)[1]#
+							x1<-frame$xx#
+							yvalue<-frame$yx#
+							if(is.numeric(Fm)==TRUE)#
+							{	Aest<-Fv#
+								Cest<-Fo#
+							}#
+							if(is.numeric(Fm)==FALSE)#
+							{	Fm<-simper[endo]#
+								Fo<-simper[1]#
+								Fv<-Fm-Fo#
+								Aest<-Fv#
+								Cest<-Fo#
+							}					#
+							lowE<-0.75#
+							hiE<-1.25#
+							finn<-fin+1#
+							scores1<-list()#
+							for(U in seq(1,15,1))#
+							{	end0<-finn-U#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+								cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))#
+								st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(100,1000), C=c(Cest*lowE,Cest*hiE), D=c(1000,30000))#
+								model1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+								model<--999#
+								model<-try(nls2(cur, start = coef(model1), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)#
+								if(mode(summary(model))=="list")#
+								{	#plot(model, log="")#
+									estT1<-summary(model)$coefficients#
+									scores1[[U]]<-data.frame("distt"=U,"squarer"=sum(estT1[,2]))#
+								}#
+								else if(mode(summary(model))=="character")#
+								{	scores1[[U]]<-data.frame("distt"=U, "squarer"=NA)#
+								}#
+							}#
+							res1 <- data.frame(do.call(rbind, scores1))#
+							finalist1<-res1[order(res1[,2]),][1,1]#
+							if(is.numeric(finalist1)==TRUE)#
+							{	end0<-finn-finalist1#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							if(is.numeric(finalist1)==FALSE)#
+							{	end0<-fin#
+								x1<- frame$xx[1:end0]#
+								yvalue<- frame$xy[1:end0]#
+							}#
+							cur<-yvalue~(A*(exp(-x1/B)))+(C*(exp(-x1/D)))	#
+							st2 <- list(A=c(Aest*lowE,Aest*hiE), B=c(100,1000), C=c(Cest*lowE,Cest*hiE), D=c(1000,30000))					#
+							fited1<-try(nls2(cur, start = st2, algorithm = "brute-force", control=list(maxiter=200)), silent=TRUE)#
+							v<--999#
+							v<-try(nls2(cur, start = coef(fited1), control = list(maxiter = 4000), algorithm = "default"), silent=TRUE)	#
+							if(mode(v)=="character")#
+							{	Tau1<-NA#
+								Tau2<-NA#
+								TauAve<-NA#
+								TauFo<-NA#
+								T1pval<-NA#
+								T2pval<-NA#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", main="no-fit")#
+							}#
+							if(mode(v)=="list")#
+							{	COEF<-summary(v)$coefficients#
+								Acoe<-COEF[1,1]#
+								Bcoe<-COEF[2,1]#
+								Ccoe<-COEF[3,1]#
+								Dcoe<-COEF[4,1]#
+								T1pval<-COEF[2,4]#
+								T2pval<-COEF[4,4]#
+								rest<-(Acoe*(exp(-x1/Bcoe)))+(Ccoe*(exp(-x1/Dcoe)))#
+								Tau1<-Bcoe#
+								Tau2<-Dcoe#
+								TauAve<-(Bcoe+Dcoe)/2#
+								TauFo<-(Acoe*(exp(-x1[end0]/Bcoe)))+(Ccoe*(exp(-x1[end0]/Dcoe)))							#
+								hh<-rest[1]*0.9#
+								ll<-rest[length(rest)]*1.1#
+								plot(x1, yvalue, pch=19, cex=0.5, col="black", log="x")#
+								lines(x1,rest, col ="red", lwd=1.75)	#
+							}						#
+							MULTIS[[G]]<-data.frame("dater"=Dater, "sample"=Namer, "col"=col, "year"=year, "month"=month, "day"=day, "hour"=hour, "minute"=minute, "second"=second, "light"=light, "time"=time, "Lstep"=stepper, "Fo"=Fo, "Fm"=Fm, "FvFm"=Fv_Fm, "Sig"=sigma, "P"=P, "TauFo"=TauFo,"Tau1"= Tau1, "Tau2"= Tau2, "TauAve"= TauAve, "Spval"=Spval, "Fopval"=Fopval, "Fmpval"=Fmpval, "Pval"=Pval, "T1pval"=T1pval, "T2pval"=T2pval, "sigma2"=sigma2, "sigmaPval"=sigmaPval)#
+						}	#
+					PAR[[I]]<-data.frame(do.call(rbind, MULTIS))		#
+					}#
+				}#
+			all<-data.frame(do.call(rbind, PAR))#
+			NN<-MULTIS[[G]][2]#
+			CompilerCSV(all, NN)#
+			#photo(all, NN)#
+			}#
+		}#
+	}#
+}
+git config
+git commit
+library(git)
+setwd(/Users/sophiewong/Documents/GraduateSchool/Fall_2024/hoadleylab_tester)
+setwd("/Users/sophiewong/Documents/GraduateSchool/Fall_2024/hoadleylab_tester")
+ls
+read.csv('demo_YOURNAME.csv')
+git commit
+demo_yourname <- read.csv('demo_YOURNAME.csv')
+demo_yourname <- append(demo_yourname, c(1,1,1,1,1,1,1,1,1))
+demo_yourname
+demo_yourname <- read.csv('demo_YOURNAME.csv')
+demo_yourname
+rtester <- c(1,1,1,1,1,1,1,1,1,1)
+demo_yourname <- rbind(demo_yourname, rtester)
+rtester <- c(1,1,1,1,1,1,1,1,1)
+demo_yourname <- rbind(demo_yourname, rtester)
+rtester <- c(1,1,1,1,1,1,1,1,1,1,1)
+demo_yourname <- rbind(demo_yourname, rtester)
+demo_yourname
+demo_yourname <- read.csv('demo_YOURNAME.csv')
+demo_yourname <- rbind(demo_yourname, rtester)
+demo_yourname
+write.csv(demo_yourname, file = 'kennytester.csv', row.names = F)
+read.csv('kennytester.csv')
+git commit
+quit()
