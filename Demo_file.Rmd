@@ -21,7 +21,11 @@ print(df_random)
 ## Writing csv
 
 ```{r pressure, echo=FALSE}
+<<<<<<< HEAD
 write.csv(df_random, file = 'Shannon.csv')
+=======
+write.csv(df_random, file = 'demo_johnsonrosemond.csv')
+>>>>>>> 7abd31fc929ee11364f7d725a00687a4ba7af4a7
 
 ```
 
