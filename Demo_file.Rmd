@@ -22,7 +22,6 @@ print(df_random)
 
 ```{r pressure, echo=FALSE}
 write.csv(df_random, file = 'bluepahldemo.csv')
->>>>>>> 7abd31fc929ee11364f7d725a00687a4ba7af4a7
-
+# blue rocks!
 ```
 
